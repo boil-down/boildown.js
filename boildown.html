@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>boildown</title>
+	<link rel="stylesheet" href="boildown.css">	
+  </head>
+  <body>
+	<div class='column'>
+		<h1>boildown</h1>
+		<textarea id="input" rows="20">
+== boildown ==
+1. item
+  text
+2. second
+  1. other
+3. third
+  ```[java]
+  some java code
+  ```
+
+let `me *and* you _be_` test
+----
+*i am _very_ bold*
+_so are `you`_		
+----
+``but this *is* litterally _added_`` and `` this *as* ````_well_``
+
+````
+  Some line
+! the ! can be used to highlight a line
+  some other line
+````
+
+```[plain]
+here <b> is escaped </b>
+```
+
+> this is a quote
+> in two lines
+	--me
+
+Some +++text+++ got ---deleted---
+
+Other text is a ''quote''^[1].
+<<<
+~~~[40][>]
+~~~~[50]
+this is nested
+~~~~
+~~~~[50]
+and this two
+~~~~
+this is within the box
+~~~
+
+~~~[30][<]
+as is this
+~~~ 
+
+~~~[20][<>]
+and this
+~~~  
+
+		</textarea>
+		<button onclick="show()">show</button>
+	</div>
+	<div id="output" class='column'>
+	</div>
+
+
+	<script src="boildown.js"></script>
+    <script>
+		function show() {
+			var eIn = document.getElementById('input');
+			var eOut = document.getElementById('output');
+			eOut.innerHTML=processMarkup(eIn.value);
+		}
+	</script>
+
+  </body>
+</html>

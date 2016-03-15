@@ -1,0 +1,11 @@
+.column { width: 30%; margin: 5% 10%; float: left; position: relative; }
+textarea { width: 100%; }
+code { padding: 1px 5px; background-color: #eee; }
+pre { padding: 5px; margin: 3px 0; line-height: 1.4em; background-color: #e9e9e9; }
+pre div { background-color: #b8e1ff; }
+hr { border-width: 0; border-top: 1px solid #ccc; height: 0; }
+blockquote { font-style: italic; display: inline-block; text-align: left; }
+blockquote footer { text-align: right; font-style: normal; }
+.quote { text-align: center; }
+.quote:after { content:''; display: block; clear: both; }
+.bd-col { float: left; }
