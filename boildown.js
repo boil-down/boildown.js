@@ -12,30 +12,32 @@ var Boildown = (function() {
 		this.lines  = markup.split(/\r?\n/g);
 	}
 
-	Doc.prototype.len        = function ()  { return this.lines.length; }
+	var _ = Doc.prototype; 
+	_.len        = function ()  { return this.lines.length; }
 	// line content
-	Doc.prototype.line       = function (n) { return this.lines[n]; }
-	Doc.prototype.heading    = function (n) { return this.cutout(n, HEADING); }
-	Doc.prototype.itemStart  = function (n) { var c = this.lines[n].charAt(0); return c.charCodeAt() - this.itemType(n).charCodeAt() + 1; } 
-	Doc.prototype.itemType   = function (n) { var c = this.lines[n].charAt(0); return isDigit(c) ? '1' : c === 'i' || c === 'I' ? c : isLETTER(c) ? 'A' : 'a'; }
+	_.tip        = function (n) { return this.lines[n].charAt(0); }
+	_.line       = function (n) { return this.lines[n]; }
+	_.heading    = function (n) { return this.cutout(n, HEADING); }
+	_.itemStart  = function (n) { var c = this.tip(n); return c.charCodeAt() - this.itemType(n).charCodeAt() + 1; } 
+	_.itemType   = function (n) { var c = this.tip(n); return isDigit(c) ? '1' : c === 'i' || c === 'I' ? c : isLETTER(c) ? 'A' : 'a'; }
 	// line based properties
-	Doc.prototype.isPre      = function (n) { return this.isPrefixed(n, "```"); }
-	Doc.prototype.isHLine    = function (n) { return this.isPrefixed(n, "----"); }
-	Doc.prototype.isBreak    = function (n) { return this.isPrefixed(n, "<<<"); }
-	Doc.prototype.isQuote    = function (n) { return this.isPrefixed(n, "> "); }
-	Doc.prototype.isMinipage = function (n) { return this.isPrefixed(n, "~~~"); }
-	Doc.prototype.isTable    = function (n) { return this.matches(n, TABLE); }
-	Doc.prototype.isHeading  = function (n) { return this.matches(n, HEADING); }
-	Doc.prototype.isItem     = function (n) { return this.matches(n, ITEM); }
-	Doc.prototype.isIndented = function (n) { return this.matches(n, INDENT); }
+	_.isPre      = function (n) { return this.isPrefixed(n, "```"); }
+	_.isHLine    = function (n) { return this.isPrefixed(n, "----"); }
+	_.isBreak    = function (n) { return this.isPrefixed(n, "<<<"); }
+	_.isQuote    = function (n) { return this.isPrefixed(n, "> "); }
+	_.isMinipage = function (n) { return this.isPrefixed(n, "~~~"); }
+	_.isTable    = function (n) { return this.matches(n, TABLE); }
+	_.isHeading  = function (n) { return this.matches(n, HEADING); }
+	_.isItem     = function (n) { return this.matches(n, ITEM); }
+	_.isIndented = function (n) { return this.matches(n, INDENT); }
 	// line based modifications	
-	Doc.prototype.unindent   = function (n) { this.chop(n, 2); }
-	Doc.prototype.deitem     = function (n) { this.chop(n, this.lines[n].indexOf(' ')); }
+	_.deIndent   = function (n) { this.chop(n, 2); }
+	_.deItem     = function (n) { this.chop(n, this.lines[n].indexOf(' ')); }
 	// line based helpers
-	Doc.prototype.chop       = function (n, c)     { this.lines[n] = this.lines[n].substring(c); }
-	Doc.prototype.isPrefixed = function (n, str)   { return this.lines[n].startsWith(str); }
-	Doc.prototype.matches    = function (n, regex) { return regex.test(this.lines[n]); }
-	Doc.prototype.cutout     = function (n, regex) { return regex.exec(this.lines[n])[1]; }
+	_.chop       = function (n, c)     { this.lines[n] = this.lines[n].substring(c); }
+	_.isPrefixed = function (n, str)   { return this.lines[n].startsWith(str); }
+	_.matches    = function (n, regex) { return regex.test(this.lines[n]); }
+	_.cutout     = function (n, regex) { return regex.exec(this.lines[n])[1]; }
 
 	return {
 		toHTML: processMarkup
@@ -97,9 +99,9 @@ var Boildown = (function() {
 				html+="<ol type='"+doc.itemType(i)+"' start='"+doc.itemStart(i)+"'>";
 				var item = true;
 				while (item) {
-					doc.deitem(i);
+					doc.deItem(i);
 					i0 = i;
-					while (i+1 < end && doc.isIndented(i+1)) { doc.unindent(++i); }
+					while (i+1 < end && doc.isIndented(i+1)) { doc.deIndent(++i); }
 					html+= "<li>"+processLines(doc, i0, i+1, level)+"</li>";
 					item = i+1 < end && doc.isItem(i+1);
 					if (item) { i++ };
