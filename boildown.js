@@ -1,212 +1,225 @@
 
-String.prototype.replaceAll = function(search, replacement) {
-	var target = this;
-	return target.replace(new RegExp(search, 'g'), replacement);
-};
-String.prototype.indexOfNot = function(character) {
-	var target = this;
-	var i = 0;
-	while (i < target.length && target.charAt(i) === character) {i++}
-	return i;	
-}
+var Boildown = (function() {
+	'use strict';
 
-function processMarkup(markup) {
-	var lines = markup.split(/\r?\n/g);
-	return processLines(lines, 0, lines.length, 2); // this is h2 (heading level)
-}
+	const INDENT  = /^([ \t]{2}|\\s*$)/;
+	const ITEM    = /^(#|[0-9]{1,2}|[a-zA-Z])\. /;
+	const HEADING = /^[=]{2,}(.+)[=]{2,}(?:\[.*\])?[ \t]*$/;
+	const TABLE   = /^\|+(!?.+?|-+)\|(?:\[.*\])?$/;
 
-function processLines(lines, start, end, level) {
-	var i = start;
-	var i0 = i;
-	var html = "";
-	var tag = "";
-	var blankLines = 0;
-	while (i < end) {
-		var line = lines[i];
-		// horizontal lines
-		if (line.startsWith("----")) {
-			html+="<hr/>";
-		// clearing
-		} else if (line.startsWith("<<<")) {
-			html+="<div style='clear: both;' />";
-		// headings
-		} else if (/^[ \t]*[=]{2,}.+[=]{2,}$/.test(line)) {
-			var n = level;
-			if (i == blankLines) { n = 1; }			
-			html+="<h"+n+">";
-			html+=processLine(line.replace(/^[  \t]*[=]+|[=]+$/g, ""))
-			html+="</h"+n+">";
-		// pre (advanced)
-		} else if (line.startsWith("````")) {
-			html+="<pre>"; //TODO highlighting of keywords
-			i++;
-			while (i < end && !lines[i].startsWith("````")) {
-				var highlight = lines[i].startsWith("!");
-				if (highlight) { html += "<div>"; }
-				html+=escapeHTML(lines[i++].substring(2));
-				html+="\n";
-				if (highlight) { html += "</div>"; }
-			}
-			html+="</pre>";
-		// pre (simple)
-		} else if (isCodeBlock(line)) {
-			html+="<pre"+processOptions(line.substring(3))+">";
-			i++;
-			while (i < end && !isCodeBlock(lines[i])) {
-				html+=escapeHTML(lines[i++]);
-				html+="\n";
-			}
-			html+="</pre>";
-		// blockquote
-		} else if (line.startsWith("> ")) {
-			html+="<div class='quote'><blockquote>"
-			i--;
-			while (lines[i+1].startsWith("> ")) {
-				html+=escapeHTML(lines[++i].substring(2))+"\n";
-			}
-			if (i+1 < end && /^[ \t]*[-]{2}.*$/.test(lines[i+1])) {
+	function Doc(markup) {
+		this.markup = markup;		
+		this.lines  = markup.split(/\r?\n/g);
+	}
+
+	Doc.prototype.len        = function ()  { return this.lines.length; }
+	// line content
+	Doc.prototype.line       = function (n) { return this.lines[n]; }
+	Doc.prototype.heading    = function (n) { return this.cutout(n, HEADING); }
+	Doc.prototype.itemStart  = function (n) { var c = this.lines[n].charAt(0); return c.charCodeAt() - this.itemType(n).charCodeAt() + 1; } 
+	Doc.prototype.itemType   = function (n) { var c = this.lines[n].charAt(0); return isDigit(c) ? '1' : c === 'i' || c === 'I' ? c : isLETTER(c) ? 'A' : 'a'; }
+	// line based properties
+	Doc.prototype.isPre      = function (n) { return this.isPrefixed(n, "```"); }
+	Doc.prototype.isHLine    = function (n) { return this.isPrefixed(n, "----"); }
+	Doc.prototype.isBreak    = function (n) { return this.isPrefixed(n, "<<<"); }
+	Doc.prototype.isQuote    = function (n) { return this.isPrefixed(n, "> "); }
+	Doc.prototype.isMinipage = function (n) { return this.isPrefixed(n, "~~~"); }
+	Doc.prototype.isTable    = function (n) { return this.matches(n, TABLE); }
+	Doc.prototype.isHeading  = function (n) { return this.matches(n, HEADING); }
+	Doc.prototype.isItem     = function (n) { return this.matches(n, ITEM); }
+	Doc.prototype.isIndented = function (n) { return this.matches(n, INDENT); }
+	// line based modifications	
+	Doc.prototype.unindent   = function (n) { this.chop(n, 2); }
+	Doc.prototype.deitem     = function (n) { this.chop(n, this.lines[n].indexOf(' ')); }
+	// line based helpers
+	Doc.prototype.chop       = function (n, c)     { this.lines[n] = this.lines[n].substring(c); }
+	Doc.prototype.isPrefixed = function (n, str)   { return this.lines[n].startsWith(str); }
+	Doc.prototype.matches    = function (n, regex) { return regex.test(this.lines[n]); }
+	Doc.prototype.cutout     = function (n, regex) { return regex.exec(this.lines[n])[1]; }
+
+	return {
+		toHTML: processMarkup
+	};
+
+	function processMarkup(markup) {
+		var doc = new Doc(markup);
+		return processLines(doc, 0, doc.len(), 2); // this is h2 (heading level)
+	}
+
+	function processLines(doc, start, end, level) {
+		var i = start;
+		var i0 = i;
+		var html = "";
+		var tag = "";
+		var blankLines = 0;
+		while (i < end) {
+			var line = doc.line(i);
+			if (doc.isHLine(i)) {
+				html+="<hr/>";
+			} else if (doc.isBreak(i)) {
+				html+="<div style='clear: both;'></div>";
+			} else if (doc.isHeading(i)) {
+				var n = level;
+				if (i == blankLines) { n = 1; }			
+				html+="<h"+n+processOptions(line)+">"+processLine(doc.heading(i))+"</h"+n+">";
+			} else if (line.startsWith("````")) { //TODO just one pre, ! behaviour is always used as it is easy to skip by indenting
+				html+="<pre>"; //TODO highlighting of keywords
 				i++;
-				html+="<footer>&mdash;";
-				html+=processLine(lines[i].substring(lines[i].indexOf("--")+2));
-				html+="</footer>";
-			}
-			html+="</blockquote></div>"
-		// listings
-		} else if (isItem(line)) {
-			html+="<ol>";
-			var item = true;
-			while (item) {
-				lines[i] = lines[i].substring(line.indexOf(' ')); // remove item from line
-				html+= "<li>";
-				i0 = i;
-				while (i+1 < end && isIndented2(lines[i+1])) { i++; lines[i] = lines[i].substring(2); }
-				html+=processLines(lines, i0, i+1, level); 
-				html+="</li>";
-				item = i+1 < end && isItem(lines[i+1]);
-				if (item) { i++ };
-			}
-			html+="</ol>";
-		// columns
-		} else if (isColumn(line)) {
-			var depth = line.indexOfNot('~');
-			html+="<div"+processOptions(line.substring(depth), "bd-col")+">";		
-			i0 = ++i;
-			var endOfColumn = new RegExp("^[~]{"+depth+"}($|[^~])");
-			while (i < end && !endOfColumn.test(lines[i])) { i++; }
-			html+=processLines(lines, i0, i, level+1); 
-			html+="</div>";
-		// just test		
-		} else {
-			if (isBlank(line)) {
-				blankLines++;
-				// TODO possible end of par
+				while (i < end && !doc.line(i).startsWith("````")) {
+					var highlight = doc.line(i).startsWith("!");
+					if (highlight) { html += "<div>"; }
+					html+=escapeHTML(doc.line(i++).substring(2));
+					html+="\n";
+					if (highlight) { html += "</div>"; }
+				}
+				html+="</pre>";
+			} else if (doc.isPre(i)) {
+				html+="<pre"+processOptions(line)+">";
+				i++;
+				while (i < end && !doc.isPre(i)) {
+					html+="<span>"+escapeHTML(doc.line(i++))+"</span>\n";
+				}
+				html+="</pre>";
+			} else if (doc.isQuote(i)) {
+				html+="<div class='quote'><blockquote>"
+				i--;
+				while (doc.line(i+1).startsWith("> ")) {
+					html+=escapeHTML(doc.line(++i).substring(2))+"\n";
+				}
+				if (i+1 < end && /^[ \t]*[-]{2}.*$/.test(doc.line(i+1))) {
+					i++;
+					html+="<footer>&mdash;";
+					html+=processLine(doc.line(i).substring(doc.line(i).indexOf("--")+2));
+					html+="</footer>";
+				}
+				html+="</blockquote></div>"
+			} else if (doc.isItem(i)) {
+				html+="<ol type='"+doc.itemType(i)+"' start='"+doc.itemStart(i)+"'>";
+				var item = true;
+				while (item) {
+					doc.deitem(i);
+					i0 = i;
+					while (i+1 < end && doc.isIndented(i+1)) { doc.unindent(++i); }
+					html+= "<li>"+processLines(doc, i0, i+1, level)+"</li>";
+					item = i+1 < end && doc.isItem(i+1);
+					if (item) { i++ };
+				}
+				html+="</ol>";
+			} else if (doc.isMinipage(i)) {
+				var depth = line.search("[^~]");
+				html+="<div"+processOptions(line, "bd-col")+">";		
+				i0 = ++i;
+				var endOfColumn = new RegExp("^[~]{"+depth+"}($|[^~])");
+				while (i < end && !endOfColumn.test(doc.line(i))) { i++; }
+				html+=processLines(doc, i0, i, level+1); 
+				html+="</div>";
+			// just text		
 			} else {
-				html+=processLine(line);
-				html+=" ";
+				if (isBlank(line)) {
+					blankLines++;
+					// TODO possible end of par
+				} else {
+					html+=processLine(line);
+					html+=" ";
+				}
 			}
+			i++;
 		}
-		i++;
+		return html;
 	}
-	return html;
-}
 
-function processOptions(line, classes) {
-	classes = classes ? classes : "";
-	var styles = "";
-	while (line.charAt(0) === '[') {
-		var end = line.indexOf(']');
-		if (isLetter(line.charAt(1))) {
-			classes+=" "+line.substring(1, end);
-		} else if (isDigit(line.charAt(1))) {
-			styles+=" width:"+line.substring(1,end)+"%";
-		} else if (line.startsWith("[<>")) {
-			styles+= " text-align: center;"
-		} else if (line.startsWith("[<]")) {
-			styles+= " text-align: left;"
-		} else if (line.startsWith("[>]")) {
-			styles+= " text-align: right;"
+	function processOptions(line, classes) {
+		classes = classes ? classes : "";
+		var styles = "";
+		var start = line.indexOf('[');
+		while (start >= 0) {
+			var end = line.indexOf(']', start);
+			var val = line.substring(start+1, end);
+			if (isLetter(val.charAt(0))) {
+				classes+=" "+val;
+			} else if (isDigit(val.charAt(0))) {
+				styles+=" width:"+val+"%;";
+			} else if (/#[0-9A-Fa-f]{6}/.test(val)) {
+				styles+=" background-color: "+val;+";";
+			} else if (val === "<>") {
+				styles+= " text-align: center;"
+			} else if (val === "<") {
+				styles+= " text-align: left;"
+			} else if (val === ">") {
+				styles+= " text-align: right;"
+			} else if (val === "++") {
+				styles+= " font-size: x-large;"; //TODO and so on...(medium, large, small, x-small)
+			}
+			// option for floating?
+			start = line.indexOf('[', end);
 		}
-		line = line.substring(end+1);
+		return (classes ? " class='"+stripHTML(classes)+"'" : "") + (styles ? " style='"+styles+"'" : "");
 	}
-	return (classes ? " class='"+stripHTML(classes)+"'" : "") + (styles ? " style='"+styles+"'" : "");
-}
 
-function processLine(line) {
-	return processInline(escapeHTML(line));
-}
+	function processLine(line) {
+		return processInline(escapeHTML(line));
+	}
 
-function processInline(line) {
-	var start = 0;
-	var end = line.indexOf("``", start);
-	var html = "";
-	while (end >= 0)
-	{
-		if (end > start) { // add text up till literal section
-			html+=processInlineSubst(line.substring(start, end));
+	function processInline(line) {
+		var start = 0;
+		var end = line.indexOf("``", start);
+		var html = "";
+		while (end >= 0)
+		{
+			if (end > start) { // add text up till literal section
+				html+=processInlineSubst(line.substring(start, end));
+			}
+			start=end+2;
+			end=line.indexOf("``", start);
+			html+="<code>"+line.substring(start, end)+"</code>";
+			start=end+2;
+			end=line.indexOf("``", start);
 		}
-		start=end+2;
-		end=line.indexOf("``", start);
-		html+="<code>"+line.substring(start, end)+"</code>";
-		start=end+2;
-		end=line.indexOf("``", start);
+		html+=processInlineSubst(line.substring(start, line.length));
+		return html;
 	}
-	html+=processInlineSubst(line.substring(start, line.length));
-	return html;
-}
 
-function processInlineSubst(line) {
-	var res = line
-		.replaceAll("`([^`]+)`","<code>$1</code>")
-		.replaceAll("\\*([^*]+)\\*","<b>$1</b>")
-		.replaceAll("_([^_]+)_","<em>$1</em>")
-		.replaceAll("\\+\\+\\+(.+?)\\+\\+\\+", "<ins>$1</ins>")
-		.replaceAll("---(.+?)---", "<del>$1</del>")
-		.replaceAll("\\^\\[(\\d+)\\]", "<sup><a href='#fnote$1'>$1</a></sup>")
-		;
-	do {
-		var len0 = res.length;
-		res = res.replaceAll("([']{2,})(.+)\\1", "<q>$2</q>");
-	} while (len0 != res.length);
-	return res;
-}
+	function processInlineSubst(line) {
+		var res = line
+			.replace(/`([^`]+)`/g,"<code>$1</code>")
+			.replace(/\*([^*]+)\*/g,"<b>$1</b>")
+			.replace(/_([^_]+)_/g,"<em>$1</em>")
+			.replace(/\+\+\+(.+?)\+\+\+/g, "<ins>$1</ins>")
+			.replace(/---(.+?)---/g, "<del>$1</del>")
+			.replace(/\^\[(\d+)\]/g, "<sup><a href='#fnote$1'>$1</a></sup>")
+			;
+		do {
+			var len0 = res.length;
+			res = res.replace(/([']{2,})(.+)\1/g, "<q>$2</q>");
+		} while (len0 !== res.length);
+		return res;
+	}
 
-function isCodeBlock(line) {
-	return line.startsWith("```");
-}
+	function isDigit(c) {
+		return c >= '0' && c <= '9';
+	}
 
-function isIndented2(line) {
-	return /^([ \t]{2}.*|\\s*)$/.test(line);
-}
+	function isLetter(c) {
+		return c >= 'a' && c <= 'z' || isLETTER(c);
+	}
 
-function isColumn(line) {
-	return line.startsWith("~~~");
-}
+	function isLETTER(c) {
+		return c >= 'A' && c <= 'Z';
+	}
 
-function isItem(line) {
-	return line.startsWith("* ") || line.startsWith("#. ") || /^([0-9]{1,2}|[a-zA-Z])\. .*$/.test(line);
-}
+	function isBlank(str) {
+		return (!str || /^\s*$/.test(str));
+	}
 
-function isDigit(c) {
-	return c >= '0' && c <= '9';
-}
+	function escapeHTML(html) {
+		var div = document.createElement('div');
+		div.appendChild(document.createTextNode(html));
+		return div.innerHTML;
+	}
 
-function isLetter(c) {
-	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z';
-}
-
-function isBlank(str) {
-	return (!str || /^\s*$/.test(str));
-}
-
-function escapeHTML(html) {
-	var text = document.createTextNode(html);
-	var div = document.createElement('div');
-	div.appendChild(text);
-	return div.innerHTML;
-}
-
-function stripHTML(html) {
-	var tmp = document.createElement("div");
-	tmp.innerHTML = html;
-	return tmp.textContent || tmp.innerText || "";
-}
+	function stripHTML(html) {
+		var tmp = document.createElement("div");
+		tmp.innerHTML = html;
+		return tmp.textContent || tmp.innerText || "";
+	}
+})();

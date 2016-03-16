@@ -48,7 +48,7 @@ Other text is a ''quote''^[1].
 ~~~~[50]
 this is nested
 ~~~~
-~~~~[50]
+~~~~[50][#C0CA33]
 and this two
 ~~~~
 this is within the box
@@ -58,7 +58,7 @@ this is within the box
 as is this
 ~~~ 
 
-~~~[20][<>]
+~~~[20][<>][#E6EE9C]
 and this
 ~~~  
 
@@ -74,7 +74,7 @@ and this
 		function show() {
 			var eIn = document.getElementById('input');
 			var eOut = document.getElementById('output');
-			eOut.innerHTML=processMarkup(eIn.value);
+			eOut.innerHTML=Boildown.toHTML(eIn.value);
 		}
 	</script>
 
