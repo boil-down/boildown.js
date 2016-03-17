@@ -3,11 +3,10 @@
 == Blocks ==
 
 == Text Formatting ==
-:::[50]
-:::		
-:::[50]
-
-:::		
+* *bold* ``*bold*``
+* _italic_ ``_italic_``
+* +++insert+++ ``+++insert+++``
+* `code` ```code```
 
 
 

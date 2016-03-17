@@ -112,7 +112,7 @@ var Boildown = (function() {
 					i0 = i;
 					while (i+1 < end && doc.isIndented(i+1)) { doc.deIndent(++i); }
 					html+= "<li>"+processLines(doc, i0, i+1, level)+"</li>";
-					item = i+1 < end && doc.isItem(i+1);
+					item = i+1 < end && (bullet ? doc.isBullet(i+1) : doc.isItem(i+1));
 					if (item) { i++ };
 				}
 				html+= bullet ? "</ul>" : "</ol>";
