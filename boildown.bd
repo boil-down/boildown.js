@@ -1,16 +1,20 @@
 == boildown ==
 
-~~~99<>
-== blocks ==
-~~~
+== Blocks ==
 
-~~~50
+== Text Formatting ==
+:::[50]
+:::		
+:::[50]
 
-~~~
-~~~50
+:::		
 
-~~~
-		
+
+
+
+
+
+
 +++ ... +++ block inserted
 --- ... --- block inserted
 | ... | table cell (||| ...  | would be a cell with colspan=3)

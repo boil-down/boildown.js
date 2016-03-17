@@ -32,7 +32,7 @@ var Boildown = (function() {
 	_.isHLine    = function (n) { return this.starts(n, "----"); }
 	_.isBreak    = function (n) { return this.starts(n, "<<<"); }
 	_.isQuote    = function (n) { return this.starts(n, "> "); }
-	_.isMinipage = function (n) { return this.starts(n, "~~~"); }
+	_.isMinipage = function (n) { return this.starts(n, ":::"); }
 	_.isBullet   = function (n) { return this.starts(n, "* "); }
 	_.isItem     = function (n) { return this.matches(n, ITEM); }
 	_.isTable    = function (n) { return this.matches(n, TABLE); }
@@ -117,10 +117,10 @@ var Boildown = (function() {
 				}
 				html+= bullet ? "</ul>" : "</ol>";
 			} else if (doc.isMinipage(i)) {
-				var depth = line.search("[^~]");
+				var depth = line.search("[^:]");
 				html+="<div"+processOptions(line, "bd-col")+">";		
 				i0 = ++i;
-				var endOfColumn = new RegExp("^[~]{"+depth+"}($|[^~])");
+				var endOfColumn = new RegExp("^[:]{"+depth+"}($|[^:])");
 				while (i < end && !endOfColumn.test(doc.line(i))) { i++; }
 				html+=processLines(doc, i0, i, level+1); 
 				html+="</div>";
@@ -146,12 +146,12 @@ var Boildown = (function() {
 		while (start >= 0) {
 			var end = line.indexOf(']', start);
 			var val = line.substring(start+1, end);
-			if (/[-_a-zA-Z0-9 ]+/.test(val)) {
+			if (/^(?: ?[a-zA-Z][-_a-zA-Z0-9]*)+$/.test(val)) {
 				classes+=" "+val;
-			} else if (/[0-9]+/.test(val)) {
-				styles+=" width:"+val+"%;";
-			} else if (/#[0-9A-Fa-f]{6}/.test(val)) {
-				styles+=" background-color: "+val;+";";
+			} else if (/^[0-9]{1,3}$/.test(val)) {
+				styles+=" width:"+val+"%;"; // use width attribute?
+			} else if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+				styles+=" background-color: "+val+";";
 			} else if (val === "<>") {
 				styles+= " text-align: center;"
 			} else if (val === "<") {
@@ -163,6 +163,7 @@ var Boildown = (function() {
 			}
 			// option for floating?
 			// TODO option for preformatted text (linebreaks as in source)
+			// padding? maybe "~px"
 			start = line.indexOf('[', end);
 		}
 		return (classes ? " class='"+classes+"'" : "") + (styles ? " style='"+styles+"'" : "");
@@ -202,7 +203,7 @@ var Boildown = (function() {
 			.replace(/---(.+?)---/g, "<del>$1</del>")
 			.replace(/\^\[(\d+)\]/g, "<sup><a href='#fnote$1'>$1</a></sup>")
 			.replace(/&amp;([a-zA-Z]{2,10});/g, "&$1;") // unescape HTML entities
-			);
+			); // available: ~
 	}
 
 	function processQuotes(line) {
