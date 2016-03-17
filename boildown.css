@@ -9,3 +9,4 @@ blockquote footer { text-align: right; font-style: normal; }
 .quote { text-align: center; }
 .quote:after { content:''; display: block; clear: both; }
 .bd-col { float: left; }
+pre span:before { content: '1.'; }

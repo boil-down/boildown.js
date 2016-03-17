@@ -11,14 +11,6 @@
 
 ~~~
 		
-== heading == (2 or more =)
----- line (4 or more -)
-``` ... ```[lang] pre (optional name of the lang is added to pre tag as class)
-```` ... ```` pre[marker][keywords] (advanced; ! to highlight a line, marker char, list of "keywords") ````
-~~~50> column (width in %, left <, right >  or center <> align), more %%% can be used to nest (closing must match opening amount of %)
-> blockquote
->> blockquote (linebreaks as in source)
-<<< clear 
 +++ ... +++ block inserted
 --- ... --- block inserted
 | ... | table cell (||| ...  | would be a cell with colspan=3)

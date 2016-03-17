@@ -2,10 +2,15 @@
 var Boildown = (function() {
 	'use strict';
 
-	const INDENT  = /^([ \t]{2}|\\s*$)/;
-	const ITEM    = /^(#|[0-9]{1,2}|[a-zA-Z])\. /;
-	const HEADING = /^[=]{2,}(.+)[=]{2,}(?:\[.*\])?[ \t]*$/;
-	const TABLE   = /^\|+(!?.+?|-+)\|(?:\[.*\])?$/;
+	// inline
+	const LINK_REF = /\[\[((?:https?:\/\/)?(?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20}) (.+?)\]\]/g;
+	const LINK_REL = /\[\[(\d+(?:\.\d+)*)\]\]/g;
+
+	// blocks	
+	const INDENT    = /^([ \t]{2}|\\s*$)/;
+	const ITEM      = /^(#|[0-9]{1,2}|[a-zA-Z])\. /;
+	const HEADING   = /^[=]{2,}(.+)[=]{2,}(?:\[.*\])?[ \t]*$/;
+	const TABLE     = /^\|+(!?.+?|-+)\|(?:\[.*\])?$/;
 
 	function Doc(markup) {
 		this.markup = markup;		
@@ -19,23 +24,26 @@ var Boildown = (function() {
 	_.line       = function (n) { return this.lines[n]; }
 	_.heading    = function (n) { return this.cutout(n, HEADING); }
 	_.itemStart  = function (n) { var c = this.tip(n); return c.charCodeAt() - this.itemType(n).charCodeAt() + 1; } 
-	_.itemType   = function (n) { var c = this.tip(n); return isDigit(c) ? '1' : c === 'i' || c === 'I' ? c : isLETTER(c) ? 'A' : 'a'; }
+	_.itemType   = function (n) { var c = this.tip(n); return /\d/.test(c) ? '1' : /i/i.test(c) ? c : /[A-Z]/.test(c) ? 'A' : 'a'; }
 	// line based properties
-	_.isPre      = function (n) { return this.isPrefixed(n, "```"); }
-	_.isHLine    = function (n) { return this.isPrefixed(n, "----"); }
-	_.isBreak    = function (n) { return this.isPrefixed(n, "<<<"); }
-	_.isQuote    = function (n) { return this.isPrefixed(n, "> "); }
-	_.isMinipage = function (n) { return this.isPrefixed(n, "~~~"); }
+	_.isAddition = function (n) { return this.line(n) === "+++"; }
+	_.isDeletion = function (n) { return this.line(n) === "---"; }
+	_.isPre      = function (n) { return this.starts(n, "```"); }
+	_.isHLine    = function (n) { return this.starts(n, "----"); }
+	_.isBreak    = function (n) { return this.starts(n, "<<<"); }
+	_.isQuote    = function (n) { return this.starts(n, "> "); }
+	_.isMinipage = function (n) { return this.starts(n, "~~~"); }
+	_.isBullet   = function (n) { return this.starts(n, "* "); }
+	_.isItem     = function (n) { return this.matches(n, ITEM); }
 	_.isTable    = function (n) { return this.matches(n, TABLE); }
 	_.isHeading  = function (n) { return this.matches(n, HEADING); }
-	_.isItem     = function (n) { return this.matches(n, ITEM); }
 	_.isIndented = function (n) { return this.matches(n, INDENT); }
 	// line based modifications	
 	_.deIndent   = function (n) { this.chop(n, 2); }
 	_.deItem     = function (n) { this.chop(n, this.lines[n].indexOf(' ')); }
 	// line based helpers
 	_.chop       = function (n, c)     { this.lines[n] = this.lines[n].substring(c); }
-	_.isPrefixed = function (n, str)   { return this.lines[n].startsWith(str); }
+	_.starts     = function (n, str)   { return this.lines[n].startsWith(str); }
 	_.matches    = function (n, regex) { return regex.test(this.lines[n]); }
 	_.cutout     = function (n, regex) { return regex.exec(this.lines[n])[1]; }
 
@@ -85,8 +93,8 @@ var Boildown = (function() {
 			} else if (doc.isQuote(i)) {
 				html+="<div class='quote'><blockquote>"
 				i--;
-				while (doc.line(i+1).startsWith("> ")) {
-					html+=escapeHTML(doc.line(++i).substring(2))+"\n";
+				while (doc.isQuote(i+1)) {
+					html+=processLine(doc.line(++i).substring(2))+"\n";
 				}
 				if (i+1 < end && /^[ \t]*[-]{2}.*$/.test(doc.line(i+1))) {
 					i++;
@@ -95,8 +103,9 @@ var Boildown = (function() {
 					html+="</footer>";
 				}
 				html+="</blockquote></div>"
-			} else if (doc.isItem(i)) {
-				html+="<ol type='"+doc.itemType(i)+"' start='"+doc.itemStart(i)+"'>";
+			} else if (doc.isItem(i) || doc.isBullet(i)) {
+				var bullet = doc.isBullet(i);
+				html+= bullet ? "<ul>" : "<ol type='"+doc.itemType(i)+"' start='"+doc.itemStart(i)+"'>";
 				var item = true;
 				while (item) {
 					doc.deItem(i);
@@ -106,7 +115,7 @@ var Boildown = (function() {
 					item = i+1 < end && doc.isItem(i+1);
 					if (item) { i++ };
 				}
-				html+="</ol>";
+				html+= bullet ? "</ul>" : "</ol>";
 			} else if (doc.isMinipage(i)) {
 				var depth = line.search("[^~]");
 				html+="<div"+processOptions(line, "bd-col")+">";		
@@ -137,9 +146,9 @@ var Boildown = (function() {
 		while (start >= 0) {
 			var end = line.indexOf(']', start);
 			var val = line.substring(start+1, end);
-			if (isLetter(val.charAt(0))) {
+			if (/[-_a-zA-Z0-9 ]+/.test(val)) {
 				classes+=" "+val;
-			} else if (isDigit(val.charAt(0))) {
+			} else if (/[0-9]+/.test(val)) {
 				styles+=" width:"+val+"%;";
 			} else if (/#[0-9A-Fa-f]{6}/.test(val)) {
 				styles+=" background-color: "+val;+";";
@@ -153,9 +162,10 @@ var Boildown = (function() {
 				styles+= " font-size: x-large;"; //TODO and so on...(medium, large, small, x-small)
 			}
 			// option for floating?
+			// TODO option for preformatted text (linebreaks as in source)
 			start = line.indexOf('[', end);
 		}
-		return (classes ? " class='"+stripHTML(classes)+"'" : "") + (styles ? " style='"+styles+"'" : "");
+		return (classes ? " class='"+classes+"'" : "") + (styles ? " style='"+styles+"'" : "");
 	}
 
 	function processLine(line) {
@@ -163,9 +173,9 @@ var Boildown = (function() {
 	}
 
 	function processInline(line) {
+		var html = "";
 		var start = 0;
 		var end = line.indexOf("``", start);
-		var html = "";
 		while (end >= 0)
 		{
 			if (end > start) { // add text up till literal section
@@ -182,31 +192,26 @@ var Boildown = (function() {
 	}
 
 	function processInlineSubst(line) {
-		var res = line
+		return processQuotes(line
+			.replace(LINK_REF, "<a href=\"$1\">$2</a>")
+			.replace(LINK_REL, "<a href=\"#sec-$1\">$1</a>")
 			.replace(/`([^`]+)`/g,"<code>$1</code>")
 			.replace(/\*([^*]+)\*/g,"<b>$1</b>")
-			.replace(/_([^_]+)_/g,"<em>$1</em>")
+			.replace(/_([^_\/]+)_/g,"<em>$1</em>")
 			.replace(/\+\+\+(.+?)\+\+\+/g, "<ins>$1</ins>")
 			.replace(/---(.+?)---/g, "<del>$1</del>")
 			.replace(/\^\[(\d+)\]/g, "<sup><a href='#fnote$1'>$1</a></sup>")
-			;
+			.replace(/&amp;([a-zA-Z]{2,10});/g, "&$1;") // unescape HTML entities
+			);
+	}
+
+	function processQuotes(line) {
+		var res = line;		
 		do {
 			var len0 = res.length;
 			res = res.replace(/([']{2,})(.+)\1/g, "<q>$2</q>");
 		} while (len0 !== res.length);
 		return res;
-	}
-
-	function isDigit(c) {
-		return c >= '0' && c <= '9';
-	}
-
-	function isLetter(c) {
-		return c >= 'a' && c <= 'z' || isLETTER(c);
-	}
-
-	function isLETTER(c) {
-		return c >= 'A' && c <= 'Z';
 	}
 
 	function isBlank(str) {
@@ -217,11 +222,5 @@ var Boildown = (function() {
 		var div = document.createElement('div');
 		div.appendChild(document.createTextNode(html));
 		return div.innerHTML;
-	}
-
-	function stripHTML(html) {
-		var tmp = document.createElement("div");
-		tmp.innerHTML = html;
-		return tmp.textContent || tmp.innerText || "";
 	}
 })();
