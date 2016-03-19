@@ -65,6 +65,7 @@ var Boildown = (function() {
 		if (this.isItem(n)) { return blockListing; }
 		if (this.isBullet(n)) { return blockListing; }
 		if (this.isMinipage(n)) { return blockMinipage; }
+		if (this.isTable(n)) { return blockTable; }
 		return blockParagraph;
 	 }
 
@@ -182,6 +183,36 @@ var Boildown = (function() {
 		}
 		doc.add("</pre>\n");
 		return i+1;
+	}
+
+	function blockTable(doc, start, end, level) {
+		var i = start;
+		doc.add("<table class='user'>");
+		var firstRow = true;
+		while (i < end && doc.isTable(i)) { 
+			var line = doc.line(i);
+			if (i == start) { doc.add("<table "+processOptions(line.startsWith("|[") ? line : "", "user")+">"); }
+			if (doc.matches(i, /\|\[ /)) {
+				doc.add("<caption>"+processLine(line.substring(line.indexOf(" "), line.indexOf("]|")))+"</caption>");
+			}
+			if (doc.matches(i, /^\|[-=]/)) {
+				if (!firstRow) { doc.add("</tr>"); }
+				firstRow = false;
+				doc.add("<tr "+processOptions(doc.line(i), line.indexOf('=') < 0 ? "": "border")+">"); //TODO border or not via class
+			} else if (doc.matches(i, /\|+!? /)) {
+				if (firstRow) { doc.add("<tr>"); }
+				firstRow = false;
+				var line = doc.line(i);
+				var bangIdx = line.indexOf("!");
+				var tag = bangIdx === 1 || bangIdx === 2 ? "th" : "td";
+				doc.add("<"+tag+" "+processOptions(line, line.charAt(1) === '|' ? "lborder" : "")+">"); // TODO border and cut only real options at the end
+				doc.add(processLine(line.substring(line.indexOf(" "), line.lastIndexOf("|")-1)));
+				doc.add("</"+tag+">"); // TODO add a feature that does keep cell open so one can use mutliline content???
+			}
+			i++;
+		}
+		doc.add("</tr></table>");
+		return i;
 	}
 
 	function blockListing(doc, start, end, level) {

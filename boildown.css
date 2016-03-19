@@ -2,6 +2,8 @@
 
 textarea { width: 100%; }
 code { padding: 1px 5px; background-color: #eee; white-space: pre-wrap; }
+del { color: #D50000; }
+ins { color: #1B5E20; text-decoration: none; }
 pre { padding: 5px; margin: 3px 0; line-height: 1.4em; background-color: #e9e9e9; }
 pre span.highlight { background-color: #b8e1ff; }
 hr { border-width: 0; border-top: 1px solid #ccc; height: 0; }
@@ -12,3 +14,8 @@ table.describe, table.example { width: 100%; border-spacing: 5px 0; }
 table.describe td { width: 50%; vertical-align: top; }
 table.example td { width: 50%; }
 table.describe pre.source, table.example pre.source { white-space: pre-wrap; background-color: #FFF9C4; margin: 0; }
+
+table.user { border-spacing: 0 0; }
+table.user td, table.user th { padding: 3px; }
+table.user tr.border td { border-top: 1px solid black;  }
+table.user tr td.lborder { border-left: 1px solid black; }
