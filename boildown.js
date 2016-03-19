@@ -15,6 +15,8 @@ var Boildown = (function() {
 	function Doc(markup) {
 		this.markup = markup;		
 		this.lines  = markup.split(/\r?\n/g);
+		this.html   = "";
+		this.blankLines = 0;
 	}
 
 	var _ = Doc.prototype; 
@@ -46,6 +48,20 @@ var Boildown = (function() {
 	_.starts     = function (n, str)   { return this.lines[n].startsWith(str); }
 	_.matches    = function (n, regex) { return regex.test(this.lines[n]); }
 	_.cutout     = function (n, regex) { return regex.exec(this.lines[n])[1]; }
+	// output
+	_.add        = function (elem) { this.html+=elem; }
+
+	_.block      = function (n) { 
+		if (this.isHLine(n)) { return blockHLine; }
+		if (this.isBreak(n)) { return blockBreak; }
+		if (this.isHeading(n)) { return blockHeading; }
+		if (this.isPre(n)) { return blockVerbatim; }
+		if (this.isQuote(n)) { return blockQuote; }
+		if (this.isItem(n)) { return blockListing; }
+		if (this.isBullet(n)) { return blockListing; }
+		if (this.isMinipage(n)) { return blockMinipage; }
+		return blockParagraph;
+	 }
 
 	return {
 		toHTML: processMarkup
@@ -53,90 +69,110 @@ var Boildown = (function() {
 
 	function processMarkup(markup) {
 		var doc = new Doc(markup);
-		return processLines(doc, 0, doc.len(), 2); // this is h2 (heading level)
+		processLines(doc, 0, doc.len(), 2); // this is h2 (heading level)
+		return doc.html;
 	}
 
 	function processLines(doc, start, end, level) {
 		var i = start;
-		var i0 = i;
-		var html = "";
-		var tag = "";
-		var blankLines = 0;
 		while (i < end) {
-			var line = doc.line(i);
-			if (doc.isHLine(i)) {
-				html+="<hr/>";
-			} else if (doc.isBreak(i)) {
-				html+="<div style='clear: both;'></div>";
-			} else if (doc.isHeading(i)) {
-				var n = level;
-				if (i == blankLines) { n = 1; }			
-				html+="<h"+n+processOptions(line)+">"+processLine(doc.heading(i))+"</h"+n+">";
-			} else if (line.startsWith("````")) { //TODO just one pre, ! behaviour is always used as it is easy to skip by indenting
-				html+="<pre>"; //TODO highlighting of keywords
-				i++;
-				while (i < end && !doc.line(i).startsWith("````")) {
-					var highlight = doc.line(i).startsWith("!");
-					if (highlight) { html += "<div>"; }
-					html+=escapeHTML(doc.line(i++).substring(2));
-					html+="\n";
-					if (highlight) { html += "</div>"; }
-				}
-				html+="</pre>";
-			} else if (doc.isPre(i)) {
-				html+="<pre"+processOptions(line)+">";
-				i++;
-				while (i < end && !doc.isPre(i)) {
-					html+="<span>"+escapeHTML(doc.line(i++))+"</span>\n";
-				}
-				html+="</pre>";
-			} else if (doc.isQuote(i)) {
-				html+="<div class='quote'><blockquote>"
-				i--;
-				while (doc.isQuote(i+1)) {
-					html+=processLine(doc.line(++i).substring(2))+"\n";
-				}
-				if (i+1 < end && /^[ \t]*[-]{2}.*$/.test(doc.line(i+1))) {
-					i++;
-					html+="<footer>&mdash;";
-					html+=processLine(doc.line(i).substring(doc.line(i).indexOf("--")+2));
-					html+="</footer>";
-				}
-				html+="</blockquote></div>"
-			} else if (doc.isItem(i) || doc.isBullet(i)) {
-				var bullet = doc.isBullet(i);
-				html+= bullet ? "<ul>" : "<ol type='"+doc.itemType(i)+"' start='"+doc.itemStart(i)+"'>";
-				var item = true;
-				while (item) {
-					doc.deItem(i);
-					i0 = i;
-					while (i+1 < end && doc.isIndented(i+1)) { doc.deIndent(++i); }
-					html+= "<li>"+processLines(doc, i0, i+1, level)+"</li>";
-					item = i+1 < end && (bullet ? doc.isBullet(i+1) : doc.isItem(i+1));
-					if (item) { i++ };
-				}
-				html+= bullet ? "</ul>" : "</ol>";
-			} else if (doc.isMinipage(i)) {
-				var depth = line.search("[^:]");
-				html+="<div"+processOptions(line, "bd-col")+">";		
-				i0 = ++i;
-				var endOfColumn = new RegExp("^[:]{"+depth+"}($|[^:])");
-				while (i < end && !endOfColumn.test(doc.line(i))) { i++; }
-				html+=processLines(doc, i0, i, level+1); 
-				html+="</div>";
-			// just text		
-			} else {
-				if (isBlank(line)) {
-					blankLines++;
-					// TODO possible end of par
-				} else {
-					html+=processLine(line);
-					html+=" ";
-				}
-			}
-			i++;
+			var j = i;
+			i = doc.block(i)(doc, i, end, level);
+			if (i == j) { console.log("endless loop at line: "+i); return; }
+			j = i;
 		}
-		return html;
+	}
+
+	// BLOCK functions return the line index after the block
+
+	function blockBreak(doc, start, end, level) {
+		doc.add("<div style='clear: both;'></div>");
+		return start+1;
+	}
+
+	function blockHLine(doc, start, end, level) {
+		// TODO options
+		doc.add("<hr/>");
+		return start+1;
+	}
+
+	function blockParagraph(doc, start, end, level) {
+		var line = doc.line(start);
+		if (isBlank(line)) {
+			doc.blankLines++;
+			// TODO possible end of par
+		} else {
+			doc.add(processLine(line)+" ");
+		}
+		return start+1;
+	}
+
+	function blockHeading(doc, start, end, level) {
+		var n = level;
+		if (start == doc.blankLines) { n = 1; }			
+		doc.add("<h"+n+processOptions(doc.line(start))+">"+processLine(doc.heading(start))+"</h"+n+">");
+		return start+1;
+	}
+
+	function blockQuote(doc, start, end, level) {
+		var i = start;
+		while (i < end && doc.isQuote(i)) { doc.deIndent(i++); }
+		doc.add("<div class='quote'><blockquote>");
+		processLines(doc, start, i, level+1);
+		doc.add("</blockquote></div>");
+		return i;
+	}
+
+	function blockVerbatim(doc, start, end, level) {
+		//TODO highlighting of keywords
+		var i = start;
+		var ci = 16;
+		doc.add("<pre"+processOptions(doc.line(i++))+">");
+		while (i < end && !doc.isPre(i)) { 
+			var line = doc.line(i++);
+			if (line.charAt(0) === '!')  {
+				ci=Math.min(ci, line.substring(1).search(/[^ \t]/)+1); 
+			} else {
+				ci=Math.min(ci, line.search(/[^ \t]/)); 
+			}
+		}
+		for (var j = start+1; j < i; j++) {
+			var line = doc.line(j);
+			var css = (ci > 0 && line.startsWith("!") ? "class='highlight'" : "");
+			doc.add("<span "+css+">"+escapeHTML(line.substring(ci))+"</span>\n");
+		}
+		doc.add("</pre>");
+		return i+1;
+	}
+
+	function blockListing(doc, start, end, level) {
+		var i = start;		
+		var bullet = doc.isBullet(i);
+		doc.add( bullet ? "<ul>" : "<ol type='"+doc.itemType(i)+"' start='"+doc.itemStart(i)+"'>");
+		var item = true;
+		while (i < end && (bullet && doc.isBullet(i) || doc.isItem(i))) {
+			var i0 = i;
+			doc.deItem(i);
+			i++;
+			while (i < end && doc.isIndented(i)) { doc.deIndent(i++); }
+			doc.add("<li>");
+			processLines(doc, i0, i, level);
+			doc.add("</li>");
+		}
+		doc.add( bullet ? "</ul>" : "</ol>");
+		return i;
+	}
+
+	function blockMinipage(doc, start, end, level) {
+		var line = doc.line(start);
+		var depth = line.search(/[^:]/);
+		var eop = new RegExp("^[:]{"+depth+"}($|[^:])");
+		var i = start+1;
+		while (i < end && !eop.test(doc.line(i))) { i++; }
+		doc.add("<div"+processOptions(line, "bd-mp")+">");		
+		processLines(doc, start+1, i, level+1); 
+		doc.add("</div>");
+		return i+1;
 	}
 
 	function processOptions(line, classes) {
@@ -180,7 +216,7 @@ var Boildown = (function() {
 		while (end >= 0)
 		{
 			if (end > start) { // add text up till literal section
-				html+=processInlineSubst(line.substring(start, end));
+				html+=inlineSubst(line.substring(start, end));
 			}
 			start=end+2;
 			end=line.indexOf("``", start);
@@ -188,25 +224,27 @@ var Boildown = (function() {
 			start=end+2;
 			end=line.indexOf("``", start);
 		}
-		html+=processInlineSubst(line.substring(start, line.length));
+		html+=inlineSubst(line.substring(start, line.length));
 		return html;
 	}
 
-	function processInlineSubst(line) {
-		return processQuotes(line
+	function inlineSubst(line) {
+		return inlineQuotes(line
 			.replace(LINK_REF, "<a href=\"$1\">$2</a>")
 			.replace(LINK_REL, "<a href=\"#sec-$1\">$1</a>")
 			.replace(/`([^`]+)`/g,"<code>$1</code>")
 			.replace(/\*([^*]+)\*/g,"<b>$1</b>")
 			.replace(/_([^_\/]+)_/g,"<em>$1</em>")
-			.replace(/\+\+\+(.+?)\+\+\+/g, "<ins>$1</ins>")
-			.replace(/---(.+?)---/g, "<del>$1</del>")
+			.replace(/~([^~]+)~/g,"<s>$1</s>")
+			.replace(/\+\+\+([^+].*?)\+\+\+/g, "<ins>$1</ins>")
+			.replace(/---([^-].*?)---/g, "<del>$1</del>")
 			.replace(/\^\[(\d+)\]/g, "<sup><a href='#fnote$1'>$1</a></sup>")
 			.replace(/&amp;([a-zA-Z]{2,10});/g, "&$1;") // unescape HTML entities
-			); // available: ~
+			.replace(/(?:^| )--(?:$| )/g, " &mdash; ")
+			);
 	}
 
-	function processQuotes(line) {
+	function inlineQuotes(line) {
 		var res = line;		
 		do {
 			var len0 = res.length;

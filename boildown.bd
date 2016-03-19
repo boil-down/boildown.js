@@ -10,6 +10,15 @@
 
 
 
+== Tables ==
+* `|[ caption ]|` `<table>`
+* `|-----------|` `<tr>` (no border)
+* `|! heading !|` `<th>` (no border)
+* `|===========|` `<tr>` (border top)
+* `|   cell    |` `<td>` (no border)
+* `||  cell    |` `<td>` (border left)
+* `|   cell   ||` `<td>` (border right)
+
 
 
 

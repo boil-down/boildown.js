@@ -11,12 +11,28 @@
 		<textarea id="input" rows="20">
 == boildown ==
 
+> this is a quote
+> in two lines
+> :::[>]
+> -- me
+> :::
+
 == Text Formatting ==
 * *bold* ``*bold*``
 * _italic_ ``_italic_``
+* ~strikethrough~ ``~strikethrough~``
 * +++inserted+++ ``+++inserted+++``
 * ---deleted--- ``---deleted---``
 * `code` `` `code` ``
+
+== Tables ==
+* `|[ caption ]|` `<table>`
+* `|-----------|` `<tr>` (no border)
+* `|! heading !|` `<th>` (no border)
+* `|===========|` `<tr>` (border top)
+* `|   cell    |` `<td>` (no border)
+* `||  cell    |` `<td>` (border left)
+* `|   cell   ||` `<td>` (border right)
 
 == Links ==
 
@@ -27,19 +43,15 @@ _so are `you`_
 ----
 ``but this *is* litterally _added_`` and `` this *as* ````_well_``
 
-````
+```
   Some line
 ! the ! can be used to highlight a line
   some other line
-````
+```
 
 ```[plain]
 here <b> is escaped </b>
 ```
-
-> this is a quote
-> in two lines
-	--me
 
 Some +++text+++ got ---deleted---
 
