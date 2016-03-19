@@ -1,11 +1,14 @@
 .column { width: 40%; margin: 5%; float: left; position: relative; }
+
 textarea { width: 100%; }
 code { padding: 1px 5px; background-color: #eee; white-space: pre-wrap; }
 pre { padding: 5px; margin: 3px 0; line-height: 1.4em; background-color: #e9e9e9; }
 pre span.highlight { background-color: #b8e1ff; }
 hr { border-width: 0; border-top: 1px solid #ccc; height: 0; }
-blockquote { font-style: italic; display: inline-block; text-align: left; }
-blockquote footer { text-align: right; font-style: normal; }
-.quote { text-align: center; }
-.quote:after { content:''; display: block; clear: both; }
+blockquote { font-style: italic; display: table; text-align: left; margin: 0 auto; white-space: pre-wrap; }
 .bd-mp[style*=' width:'] { float: left; }
+
+table.describe, table.example { width: 100%; border-spacing: 5px 0; }
+table.describe td { width: 50%; vertical-align: top; }
+table.example td { width: 50%; }
+table.describe pre.source, table.example pre.source { white-space: pre-wrap; background-color: #FFF9C4; margin: 0; }

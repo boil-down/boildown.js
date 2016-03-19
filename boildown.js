@@ -34,6 +34,8 @@ var Boildown = (function() {
 	_.isHLine    = function (n) { return this.starts(n, "----"); }
 	_.isBreak    = function (n) { return this.starts(n, "<<<"); }
 	_.isQuote    = function (n) { return this.starts(n, "> "); }
+	_.isDescribe = function (n) { return this.starts(n, "= "); }
+	_.isExample  = function (n) { return this.starts(n, "? "); }
 	_.isMinipage = function (n) { return this.starts(n, ":::"); }
 	_.isBullet   = function (n) { return this.starts(n, "* "); }
 	_.isItem     = function (n) { return this.matches(n, ITEM); }
@@ -43,6 +45,7 @@ var Boildown = (function() {
 	// line based modifications	
 	_.deIndent   = function (n) { this.chop(n, 2); }
 	_.deItem     = function (n) { this.chop(n, this.lines[n].indexOf(' ')); }
+	_.deBlock    = function (n, e, f) { while (n < e && f(n)) { this.deIndent(n++); } }
 	// line based helpers
 	_.chop       = function (n, c)     { this.lines[n] = this.lines[n].substring(c); }
 	_.starts     = function (n, str)   { return this.lines[n].startsWith(str); }
@@ -57,6 +60,8 @@ var Boildown = (function() {
 		if (this.isHeading(n)) { return blockHeading; }
 		if (this.isPre(n)) { return blockVerbatim; }
 		if (this.isQuote(n)) { return blockQuote; }
+		if (this.isDescribe(n)) { return blockDescribe; }
+		if (this.isExample(n)) { return blockExample; }
 		if (this.isItem(n)) { return blockListing; }
 		if (this.isBullet(n)) { return blockListing; }
 		if (this.isMinipage(n)) { return blockMinipage; }
@@ -86,13 +91,13 @@ var Boildown = (function() {
 	// BLOCK functions return the line index after the block
 
 	function blockBreak(doc, start, end, level) {
-		doc.add("<div style='clear: both;'></div>");
+		doc.add("<div style='clear: both;'></div>\n");
 		return start+1;
 	}
 
 	function blockHLine(doc, start, end, level) {
 		// TODO options
-		doc.add("<hr/>");
+		doc.add("<hr/>\n");
 		return start+1;
 	}
 
@@ -102,7 +107,7 @@ var Boildown = (function() {
 			doc.blankLines++;
 			// TODO possible end of par
 		} else {
-			doc.add(processLine(line)+" ");
+			doc.add(processLine(line)+"\n");
 		}
 		return start+1;
 	}
@@ -110,16 +115,50 @@ var Boildown = (function() {
 	function blockHeading(doc, start, end, level) {
 		var n = level;
 		if (start == doc.blankLines) { n = 1; }			
-		doc.add("<h"+n+processOptions(doc.line(start))+">"+processLine(doc.heading(start))+"</h"+n+">");
+		doc.add("<h"+n+processOptions(doc.line(start))+">"+processLine(doc.heading(start))+"</h"+n+">\t");
 		return start+1;
 	}
 
 	function blockQuote(doc, start, end, level) {
 		var i = start;
 		while (i < end && doc.isQuote(i)) { doc.deIndent(i++); }
-		doc.add("<div class='quote'><blockquote>");
+		doc.add("<blockquote>\n"); 
 		processLines(doc, start, i, level+1);
-		doc.add("</blockquote></div>");
+		doc.add("</blockquote>\n");
+		return i;
+	}
+
+	function blockDescribe(doc, start, end, level) {
+		var i = start;
+		while (i < end && doc.isDescribe(i)) { doc.deIndent(i++); }
+		doc.add("<table class='describe'><tr><td><pre class='source'>");
+		var l0 = doc.html.length;
+		// following line must be done before processing the lines!
+		var example = escapeHTML(doc.lines.slice(start, i).join("\n"));
+		processLines(doc, start, i, level);
+		var content = escapeHTML(doc.html.substring(l0));
+		doc.html=doc.html.substring(0, l0);
+		doc.add(example);
+		doc.add("</pre></td><td>\n<pre class='source'>\n"); 
+		doc.add(content);
+		doc.add("</pre>\n</td></tr></table>");
+		return i;
+	}
+
+	function blockExample(doc, start, end, level) {
+		var i = start;
+		while (i < end && doc.isExample(i)) { doc.deIndent(i++); }
+		doc.add("<table class='example'><tr><td><pre class='source'>");
+		var l0 = doc.html.length;
+		// following line must be done before processing the lines!
+		var example = escapeHTML(doc.lines.slice(start, i).join("\n"));
+		processLines(doc, start, i, level);
+		var content = doc.html.substring(l0);
+		doc.html=doc.html.substring(0, l0);
+		doc.add(example);
+		doc.add("</pre></td><td>\n"); 
+		doc.add(content);
+		doc.add("</td></tr></table>");
 		return i;
 	}
 
@@ -127,7 +166,7 @@ var Boildown = (function() {
 		//TODO highlighting of keywords
 		var i = start;
 		var ci = 16;
-		doc.add("<pre"+processOptions(doc.line(i++))+">");
+		doc.add("<pre"+processOptions(doc.line(i++))+">\n");
 		while (i < end && !doc.isPre(i)) { 
 			var line = doc.line(i++);
 			if (line.charAt(0) === '!')  {
@@ -139,27 +178,27 @@ var Boildown = (function() {
 		for (var j = start+1; j < i; j++) {
 			var line = doc.line(j);
 			var css = (ci > 0 && line.startsWith("!") ? "class='highlight'" : "");
-			doc.add("<span "+css+">"+escapeHTML(line.substring(ci))+"</span>\n");
+			doc.add("\t<span "+css+">"+escapeHTML(line.substring(ci))+"</span>\n");
 		}
-		doc.add("</pre>");
+		doc.add("</pre>\n");
 		return i+1;
 	}
 
 	function blockListing(doc, start, end, level) {
 		var i = start;		
 		var bullet = doc.isBullet(i);
-		doc.add( bullet ? "<ul>" : "<ol type='"+doc.itemType(i)+"' start='"+doc.itemStart(i)+"'>");
+		doc.add( bullet ? "<ul>\n" : "<ol type='"+doc.itemType(i)+"' start='"+doc.itemStart(i)+"'>\n");
 		var item = true;
 		while (i < end && (bullet && doc.isBullet(i) || doc.isItem(i))) {
 			var i0 = i;
 			doc.deItem(i);
 			i++;
 			while (i < end && doc.isIndented(i)) { doc.deIndent(i++); }
-			doc.add("<li>");
+			doc.add("<li>\n\t");
 			processLines(doc, i0, i, level);
-			doc.add("</li>");
+			doc.add("</li>\n");
 		}
-		doc.add( bullet ? "</ul>" : "</ol>");
+		doc.add( bullet ? "</ul>\n" : "</ol>\n");
 		return i;
 	}
 
@@ -169,9 +208,9 @@ var Boildown = (function() {
 		var eop = new RegExp("^[:]{"+depth+"}($|[^:])");
 		var i = start+1;
 		while (i < end && !eop.test(doc.line(i))) { i++; }
-		doc.add("<div"+processOptions(line, "bd-mp")+">");		
+		doc.add("<div"+processOptions(line, "bd-mp")+">\n\t");		
 		processLines(doc, start+1, i, level+1); 
-		doc.add("</div>");
+		doc.add("</div>\n");
 		return i+1;
 	}
 
@@ -200,9 +239,10 @@ var Boildown = (function() {
 			// option for floating?
 			// TODO option for preformatted text (linebreaks as in source)
 			// padding? maybe "~px"
+			// margin: 0 auto; ( to center)
 			start = line.indexOf('[', end);
 		}
-		return (classes ? " class='"+classes+"'" : "") + (styles ? " style='"+styles+"'" : "");
+		return (classes ? "\n\tclass='"+classes+"'" : "") + (styles ? "\n\tstyle='"+styles+"'" : "");
 	}
 
 	function processLine(line) {
@@ -240,6 +280,7 @@ var Boildown = (function() {
 			.replace(/---([^-].*?)---/g, "<del>$1</del>")
 			.replace(/\^\[(\d+)\]/g, "<sup><a href='#fnote$1'>$1</a></sup>")
 			.replace(/&amp;([a-zA-Z]{2,10});/g, "&$1;") // unescape HTML entities
+			.replace(/ \\\\(?: |$)/, "<br/>")
 			.replace(/(?:^| )--(?:$| )/g, " &mdash; ")
 			);
 	}
