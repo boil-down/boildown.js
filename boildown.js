@@ -6,68 +6,46 @@ var Boildown = (function() {
 	const LINK_REF = /\[\[((?:https?:\/\/)?(?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20}) (.+?)\]\]/g;
 	const LINK_REL = /\[\[(\d+(?:\.\d+)*)\]\]/g;
 
-	// blocks	
-	const INDENT    = /^([ \t]{2}|\\s*$)/;
-	const ITEM      = /^(#|[0-9]{1,2}|[a-zA-Z])\. /;
-	const HEADING   = /^[=]{2,}(.+)[=]{2,}(?:\[.*\])?[ \t]*$/;
-	const TABLE     = /^\|+(!?.+?|-+)\|(?:\[.*\])?$/;
+	// blocks
+	const BLOCKS    = [
+		[ bMinipage, 	/^:::/ ],
+		[ bParagraph, 	/^\+\+\+/ ], //TODO
+		[ bParagraph, 	/^---(?:$|[^-])/ ], //TODO
+		[ bListing, 	/^```/ ],
+		[ bLine, 		/^----/ ],
+		[ bDescribe, 	/^= / ],
+		[ bExample,		/^\? / ],
+		[ bNQuote,		/^> / ],
+		[ bList, 		/^\* / ],
+		[ bList, 		/^(#|[0-9]{1,2}|[a-zA-Z])\. / ],
+		[ bHeading, 	/^[=]{2,}(.+)[=]{2,}(\[.*\])?[ \t]*$/ ],
+		[ bTable,		/^\|+(!?.+?|-+)\|(?:\[.*\])?$/ ],
+		[ bParagraph, 	/^(.|$)/ ]
+	];
 
 	function Doc(markup) {
 		this.markup = markup;		
 		this.lines  = markup.split(/\r?\n/g);
+		this.levels = [0,0,0,0,0,0,0];
 		this.html   = "";
-		this.blankLines = 0;
 	}
 
 	var _ = Doc.prototype; 
-	_.len        = function ()  { return this.lines.length; }
-	// line content
-	_.tip        = function (n) { return this.lines[n].charAt(0); }
 	_.line       = function (n) { return this.lines[n]; }
-	_.heading    = function (n) { return this.cutout(n, HEADING); }
-	_.itemStart  = function (n) { var c = this.tip(n); return c.charCodeAt() - this.itemType(n).charCodeAt() + 1; } 
-	_.itemType   = function (n) { var c = this.tip(n); return /\d/.test(c) ? '1' : /i/i.test(c) ? c : /[A-Z]/.test(c) ? 'A' : 'a'; }
-	// line based properties
-	_.isAddition = function (n) { return this.line(n) === "+++"; }
-	_.isDeletion = function (n) { return this.line(n) === "---"; }
-	_.isPre      = function (n) { return this.starts(n, "```"); }
-	_.isHLine    = function (n) { return this.starts(n, "----"); }
-	_.isBreak    = function (n) { return this.starts(n, "<<<"); }
-	_.isQuote    = function (n) { return this.starts(n, "> "); }
-	_.isDescribe = function (n) { return this.starts(n, "= "); }
-	_.isExample  = function (n) { return this.starts(n, "? "); }
-	_.isMinipage = function (n) { return this.starts(n, ":::"); }
-	_.isBullet   = function (n) { return this.starts(n, "* "); }
-	_.isItem     = function (n) { return this.matches(n, ITEM); }
-	_.isTable    = function (n) { return this.matches(n, TABLE); }
-	_.isHeading  = function (n) { return this.matches(n, HEADING); }
-	_.isIndented = function (n) { return this.matches(n, INDENT); }
-	// line based modifications	
-	_.deIndent   = function (n) { this.chop(n, 2); }
-	_.deItem     = function (n) { this.chop(n, this.lines[n].indexOf(' ')); }
-	_.deBlock    = function (n, e, f) { while (n < e && f(n)) { this.deIndent(n++); } }
-	// line based helpers
-	_.chop       = function (n, c)     { this.lines[n] = this.lines[n].substring(c); }
-	_.starts     = function (n, str)   { return this.lines[n].startsWith(str); }
+	_.deItem     = function (n) { var l = this.lines[n]; this.lines[n] = l.substring(l.indexOf(' ')); }
+	_.unblock    = function (n, e, regex) { while (n < e && regex.test(this.lines[n])) { this.lines[n] = this.lines[n++].substring(2); } return n; }
 	_.matches    = function (n, regex) { return regex.test(this.lines[n]); }
-	_.cutout     = function (n, regex) { return regex.exec(this.lines[n])[1]; }
-	// output
 	_.add        = function (elem) { this.html+=elem; }
-
-	_.block      = function (n) { 
-		if (this.isHLine(n)) { return blockHLine; }
-		if (this.isBreak(n)) { return blockBreak; }
-		if (this.isHeading(n)) { return blockHeading; }
-		if (this.isPre(n)) { return blockVerbatim; }
-		if (this.isQuote(n)) { return blockQuote; }
-		if (this.isDescribe(n)) { return blockDescribe; }
-		if (this.isExample(n)) { return blockExample; }
-		if (this.isItem(n)) { return blockListing; }
-		if (this.isBullet(n)) { return blockListing; }
-		if (this.isMinipage(n)) { return blockMinipage; }
-		if (this.isTable(n)) { return blockTable; }
-		return blockParagraph;
-	 }
+	_.process    = function (start, end, level) {
+		var i = start;
+		while (i < end) {
+			var j = i;
+			var block = first(BLOCKS, this.line(i), 1);
+			i = block[0](this, i, end, level, block[1]);
+			if (i == j) { console.log("endless loop at line: "+i); return; }
+			j = i;
+		}
+	}
 
 	return {
 		toHTML: processMarkup
@@ -75,37 +53,20 @@ var Boildown = (function() {
 
 	function processMarkup(markup) {
 		var doc = new Doc(markup);
-		processLines(doc, 0, doc.len(), 2); // this is h2 (heading level)
+		doc.process(0, doc.lines.length, 2); // h2 is default start heading level
 		return doc.html;
-	}
-
-	function processLines(doc, start, end, level) {
-		var i = start;
-		while (i < end) {
-			var j = i;
-			i = doc.block(i)(doc, i, end, level);
-			if (i == j) { console.log("endless loop at line: "+i); return; }
-			j = i;
-		}
 	}
 
 	// BLOCK functions return the line index after the block
 
-	function blockBreak(doc, start, end, level) {
-		doc.add("<div style='clear: both;'></div>\n");
+	function bLine(doc, start, end, level) {
+		doc.add("<hr "+processOptions(doc.line(start))+" />\n");
 		return start+1;
 	}
 
-	function blockHLine(doc, start, end, level) {
-		// TODO options
-		doc.add("<hr/>\n");
-		return start+1;
-	}
-
-	function blockParagraph(doc, start, end, level) {
+	function bParagraph(doc, start, end, level) {
 		var line = doc.line(start);
 		if (isBlank(line)) {
-			doc.blankLines++;
 			// TODO possible end of par
 		} else {
 			doc.add(processLine(line)+"\n");
@@ -113,36 +74,32 @@ var Boildown = (function() {
 		return start+1;
 	}
 
-	function blockHeading(doc, start, end, level) {
-		var n = level;
-		if (start == doc.blankLines) { n = 1; }			
-		doc.add("<h"+n+processOptions(doc.line(start))+">"+processLine(doc.heading(start))+"</h"+n+">\t");
+	function bHeading(doc, start, end, n, pattern) {
+		if (n == 2 && doc.levels[1] === 0) { n = 1; }
+		// TODO auto-subtitle
+		doc.levels[n]++;
+		var parts = pattern.exec(doc.line(start));
+		doc.add("<h"+n+processOptions(parts[2])+">"+processLine(parts[1])+"</h"+n+">\t");
 		return start+1;
 	}
 
-	function blockQuote(doc, start, end, level) {
-		//TODO options, an option for white-space wrapping
-		var i = start;
-		while (i < end && doc.isQuote(i)) { doc.deIndent(i++); }
-		var options = "";
-		if (doc.starts(start, "[")) {
-			options = processOptions(doc.line(start));
-			start++;
-		}
-		doc.add("<blockquote "+options+">\n"); 
-		processLines(doc, start, i, level+1);
+	function bNQuote(doc, start, end, level, pattern) {
+		var i = doc.unblock(start, end, pattern);
+		doc.add("<blockquote>\n"); 
+		doc.process(start, i, level+1);
 		doc.add("</blockquote>\n");
 		return i;
 	}
 
-	function blockDescribe(doc, start, end, level) {
-		var i = start;
-		while (i < end && doc.isDescribe(i)) { doc.deIndent(i++); }
+	// TODO Quote >>>
+
+	function bDescribe(doc, start, end, level, pattern) {
+		var i = doc.unblock(start, end, pattern);
 		doc.add("<table class='describe'><tr><td><pre class='source'>");
 		var l0 = doc.html.length;
 		// following line must be done before processing the lines!
 		var example = escapeHTML(doc.lines.slice(start, i).join("\n"));
-		processLines(doc, start, i, level);
+		doc.process(start, i, level);
 		var content = escapeHTML(doc.html.substring(l0));
 		doc.html=doc.html.substring(0, l0);
 		doc.add(example);
@@ -152,14 +109,13 @@ var Boildown = (function() {
 		return i;
 	}
 
-	function blockExample(doc, start, end, level) {
-		var i = start;
-		while (i < end && doc.isExample(i)) { doc.deIndent(i++); }
+	function bExample(doc, start, end, level, pattern) {
+		var i = doc.unblock(start, end, pattern);
 		doc.add("<table class='example'><tr><td><pre class='source'>");
 		var l0 = doc.html.length;
 		// following line must be done before processing the lines!
 		var example = escapeHTML(doc.lines.slice(start, i).join("\n"));
-		processLines(doc, start, i, level);
+		doc.process(start, i, level);
 		var content = doc.html.substring(l0);
 		doc.html=doc.html.substring(0, l0);
 		doc.add(example);
@@ -169,12 +125,12 @@ var Boildown = (function() {
 		return i;
 	}
 
-	function blockVerbatim(doc, start, end, level) {
+	function bListing(doc, start, end, level, pattern) {
 		//TODO highlighting of keywords
 		var i = start;
 		var ci = 16;
 		doc.add("<pre"+processOptions(doc.line(i++))+">\n");
-		while (i < end && !doc.isPre(i)) { 
+		while (i < end && !pattern.test(doc.line(i))) { 
 			var line = doc.line(i++);
 			if (line.charAt(0) === '!')  {
 				ci=Math.min(ci, line.substring(1).search(/[^ \t]/)+1); 
@@ -185,17 +141,17 @@ var Boildown = (function() {
 		for (var j = start+1; j < i; j++) {
 			var line = doc.line(j);
 			var css = (ci > 0 && line.startsWith("!") ? "class='highlight'" : "");
-			doc.add("\t<span "+css+">"+escapeHTML(line.substring(ci))+"</span>\n");
+			doc.add("<span "+css+">"+escapeHTML(line.substring(ci))+"</span>\n");
 		}
 		doc.add("</pre>\n");
 		return i+1;
 	}
 
-	function blockTable(doc, start, end, level) {
+	function bTable(doc, start, end, level, pattern) {
 		var i = start;
 		doc.add("<table class='user'>");
 		var firstRow = true;
-		while (i < end && doc.isTable(i)) { 
+		while (i < end && pattern.test(doc.line(i))) { 
 			var line = doc.line(i);
 			if (i == start) { doc.add("<table "+processOptions(line.startsWith("|[") ? line : "", "user")+">"); }
 			if (doc.matches(i, /\|\[ /)) {
@@ -230,38 +186,42 @@ var Boildown = (function() {
 		return i;
 	}
 
-	function blockListing(doc, start, end, level) {
+	function bList(doc, start, end, level, pattern) {
 		var i = start;		
-		var bullet = doc.isBullet(i);
-		doc.add( bullet ? "<ul>\n" : "<ol type='"+doc.itemType(i)+"' start='"+doc.itemStart(i)+"'>\n");
+		var bullet = pattern.test("* ");
+		var c = doc.line(i).charAt(0);
+		doc.add( bullet ? "<ul>\n" : "<ol type='"+itemType(c)+"' start='"+itemStart(c)+"'>\n");
 		var item = true;
-		while (i < end && (bullet && doc.isBullet(i) || doc.isItem(i))) {
+		while (i < end && pattern.test(doc.line(i))) {
 			var i0 = i;
 			doc.deItem(i);
-			i++;
-			while (i < end && doc.isIndented(i)) { doc.deIndent(i++); }
+			i = doc.unblock(i+1, end, /^([ \t]{2}|\\s*$)/);
 			doc.add("<li>\n\t");
-			processLines(doc, i0, i, level);
+			doc.process(i0, i, level);
 			doc.add("</li>\n");
 		}
 		doc.add( bullet ? "</ul>\n" : "</ol>\n");
 		return i;
 	}
 
-	function blockMinipage(doc, start, end, level) {
+	function itemStart (c) { return c === '#' ? 1 : c.charCodeAt() - itemType(c).charCodeAt() + 1; } 
+	function itemType  (c) { return /\d|#/.test(c) ? '1' : /i/i.test(c) ? c : /[A-Z]/.test(c) ? 'A' : 'a'; }
+
+	function bMinipage(doc, start, end, level) {
 		var line = doc.line(start);
 		var depth = line.search(/[^:]/);
 		var eop = new RegExp("^[:]{"+depth+"}($|[^:])");
 		var i = start+1;
 		while (i < end && !eop.test(doc.line(i))) { i++; }
 		doc.add("<div"+processOptions(line, "bd-mp")+">\n\t");		
-		processLines(doc, start+1, i, level+1); 
+		doc.process(start+1, i, level+1); 
 		doc.add("</div>\n");
 		return i+1;
 	}
 
 	function processOptions(line, classes) {
 		classes = classes ? classes : "";
+		line = line ? line : "";
 		var styles = "";
 		var start = line.indexOf('[');
 		while (start >= 0) {
@@ -283,7 +243,6 @@ var Boildown = (function() {
 		return (classes ? "\n\tclass='"+classes+"'" : "") + (styles ? "\n\tstyle='"+styles+"'" : "");
 	}
 
-
 	function processOption(val) {
 		const OPTIONS = [
 			// dynamic values
@@ -301,17 +260,22 @@ var Boildown = (function() {
 			[ /^<>$/, "text-align", "center"],
 			[ /^<$/,  "text-align", "left"],
 			[ /^>$/,  "text-align", "right"],
-			[ /^<-$/,  "float", "left"],
-			[ /^->$/,  "float", "right"],
+			[ /^<=$/, "float", "left"],
+			[ /^=>$/, "float", "right"],
+			[ /^<<</, "clear", "both"],
 			[ /^\\\\$/, "white-space", "pre-wrap"],
 		];
-		for (var i = 0; i < OPTIONS.length; i++) {
-			if (OPTIONS[i][0].test(val))
-				return OPTIONS[i]; 			
-		}
+		return first(OPTIONS, val, 0);
 		// option for preformatted text (linebreaks as in source)
 		// option for floating?
 		// margin: 0 auto; ( to center)
+	}
+
+	function first(arr, val, idx) {
+		for (var i = 0; i < arr.length; i++) {
+			if (arr[i][idx].test(val))
+				return arr[i]; 			
+		}
 	}
 
 	function processLine(line) {

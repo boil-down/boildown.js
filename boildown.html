@@ -11,6 +11,59 @@
 		<textarea id="input" rows="20">
 == boildown ==
 
+
+
+== Text Formatting ==
+=  \\
+
+? *bold*
+
+? _italic_
+
+? ~strikethrough~
+
+? +++inserted+++ 
+
+? ---deleted--- 
+
+? `code`
+
+? ``*no* _markup_ here`` \\
+? `*with* _markup_ here`
+
+== Quoting ==
+Inline quoting:
+? a ''quote'', a ''' ''quote'' within a quote'''
+
+Block quotes: 
+? > a quote using
+? > multiple lines
+
+Options can be given instead the first line of the quote:
+? > [\\]
+? > a quote using
+? > multiple lines
+? > wrapping like 
+? > source
+
+Using minipages to position a cite footer.
+? > ...we fell that reasonably 
+? > we'll well educated 
+? > and the kids would be lucky, if  
+? > they are as well educated as we are, 
+? > which is a terrible crime, 
+? > because we ain't educated at all. 
+? > We're only beginning to realize 
+? > how little we know 
+? > about the nature of reality.
+? > :::[>]
+? > -- Russell Ackoff, _Speech on Systems_
+? > :::
+
+== Links ==
+
+
+== Tables ==
 |[ caption ]|
 |----|
 ||! hello, !|
@@ -20,7 +73,7 @@
 || a first example ||
 |----|
 
-|[]|[20%]['][pad5][->]
+|[]|[20%]['][pad5][=>]
 |----|[#4CAF50]
 |! Green !|
 |! !|
@@ -58,86 +111,46 @@
 | 900 |
 | #1B5E20 |
 
-== Text Formatting ==
-=  \\
-
-? *bold*
-
-? _italic_
-
-? ~strikethrough~
-
-? +++inserted+++ 
-
-? ---deleted--- 
-
-? `code`
-
-? ``*no* _markup_ here`` \\
-? `*with* _markup_ here`
-
-== Quoting ==
-Inline quoting:
-? a ''quote'', a ''' ''quote'' within a quote'''
-
-Block quotes: 
-? > a quote using
-? > multiple lines
-
-Options can be given instead the first line of the quote:
-? > [\\]
-? > a quote using
-? > multiple lines
-? > wrapping like 
-? > source
-
-Using minipages to position a cite footer.
-? > ...we fell that we're reasonably be well educated 
-? > and the kids would be lucky 
-? > if they are as well educated as we are, 
-? > which is a terrible crime, 
-? > because we ain't educated at all. 
-? > We're only beginning to realize how little we know 
-? > about the nature of reality.
-? > :::[>]
-? > -- Russell Ackoff, _Speech on Systems_
-? > :::
-
-== Links ==
-
-
-== Tables ==
-
-
 == Images == 
 
 
-== Lists == 
+== Lists ==
+? 2. one
+? 2. two
+? 4. three
 
+? #. one
+? #. two
+
+? c. cesar
+? d. delta
+? #. eta
+
+? * one
+? * other
 
 == Listings ==
+? ```
+? literally
+? with _no_ markup inside
+? ```
 
+Highlight lines...
+? ```
+?   literally
+? ! with _no_ markup inside
+? ```
 
 == Minipages ==
-
-<<<
-:::[40%][>]
-::::[50%]
-this is nested
-::::
-::::[50%][#C0CA33]
-and this two
-::::
-this is within the box
-:::
-
-:::[30%][<]
-as is this
-::: 
-
-:::[20%][<>][#E6EE9C]
-and this
-:::  
+? :::[<>][#F44336]
+? ::::[50%][#2196F3][<=]
+? another page within a page
+? ::::
+? ::::[50%][#4CAF50][=>]
+? and another one besides
+? ::::
+? and back in the outer minipage
+? :::
 
 		</textarea>
 		<button onclick="show()">show</button>
