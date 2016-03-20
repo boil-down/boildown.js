@@ -2,25 +2,59 @@
 var Boildown = (function() {
 	'use strict';
 
-	// inline
-	const LINK_REF = /\[\[((?:https?:\/\/)?(?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20}) (.+?)\]\]/g;
-	const LINK_REL = /\[\[(\d+(?:\.\d+)*)\]\]/g;
+	const INLINE = [
+		["<br/>",           / \\\\(?: |$)/ ],
+		["$1&mdash;$1",     /(^| )--($| )/g ],
+		["&hellip;",        /\.\.\./g ], 
+		["<code>$1</code>", /`([^`]+)`/g ],
+		["<b>$1</b>",       /\*([^*]+)\*/g ],
+		["<em>$1</em>",     /_([^_\/]+)_/g ],
+		["<s>$1</s>",       /~([^~]+)~/g ],
+		["<ins>$1</ins>",   /\+\+\+([^+].*?)\+\+\+/g ],
+		["<del>$1</del>",   /---([^-].*?)---/g ],
+		["&$1;",            /&amp;([a-zA-Z]{2,10});/g ], // unescape HTML entities
+		["<a href=\"$1\">$2</a>", /\[\[((?:https?:\/\/)?(?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20}) (.+?)\]\]/g ],
+		["<a href=\"#sec-$1\">$1</a>", /\[\[(\d+(?:\.\d+)*)\]\]/g ],
+		["<sup><a href='#fnote$1'>$1</a></sup>", /\^\[(\d+)\]/g ],
+	];
 
-	// blocks
 	const BLOCKS    = [
-		[ bMinipage, 	/^:::/ ],
-		[ bParagraph, 	/^\+\+\+/ ], //TODO
-		[ bParagraph, 	/^---(?:$|[^-])/ ], //TODO
-		[ bListing, 	/^```/ ],
-		[ bLine, 		/^----/ ],
-		[ bDescribe, 	/^= / ],
-		[ bExample,		/^\? / ],
-		[ bNQuote,		/^> / ],
-		[ bList, 		/^\* / ],
-		[ bList, 		/^(#|[0-9]{1,2}|[a-zA-Z])\. / ],
-		[ bHeading, 	/^[=]{2,}(.+)[=]{2,}(\[.*\])?[ \t]*$/ ],
-		[ bTable,		/^\|+(!?.+?|-+)\|(?:\[.*\])?$/ ],
-		[ bParagraph, 	/^(.|$)/ ]
+		[ bMinipage,  /^:::/ ],
+		[ bParagraph, /^\+\+\+/ ], //TODO
+		[ bParagraph, /^---(?:$|[^-])/ ], //TODO
+		[ bListing,   /^```/ ],
+		[ bQuote,     /^>>>/ ],
+		[ bLine,      /^----/ ],
+		[ bDescribe,  /^= / ],
+		[ bExample,   /^\? / ],
+		[ bNQuote,    /^> / ],
+		[ bList,      /^\* / ],
+		[ bList,      /^(#|[0-9]{1,2}|[a-zA-Z])\. / ],
+		[ bHeading,   /^[=]{2,}(.+)[=]{2,}(\[.*\])?[ \t]*$/ ],
+		[ bTable,     /^\|+(!?.+?|-+)\|(?:\[.*\])?$/ ],
+		[ bParagraph, /^(.|$)/ ]
+	];
+
+	const OPTIONS = [
+		// dynamic values
+		[ /^(?: ?[a-zA-Z][-_a-zA-Z0-9]*)+$/ ], // length 1 => classes, else => style
+		[ /^[0-9]{1,3}%$/, "width"],
+		[ /^#[0-9A-Fa-f]{6}$/, "background-color"],
+		[ /^[0-9]{1,2}pt$/, "font-size"],
+		// fixed values
+		[ /^`$/,  "font-family", "monospace", "ff-mono"],
+		[ /^'$/,  "font-family", "sans-serif", "ff-sans"],
+		[ /^"$/,  "font-family", "serif", "ff-serif"],
+		[ /^\*$/, "font-weight", "bold"],
+		[ /^_$/,  "font-style", "italic"],
+		[ /^~$/,  "text-decoration", "line-through"],
+		[ /^<>$/, "text-align", "center"],
+		[ /^<$/,  "text-align", "left"],
+		[ /^>$/,  "text-align", "right"],
+		[ /^<=$/, "float", "left"],
+		[ /^=>$/, "float", "right"],
+		[ /^<<</, "clear", "both"],
+		[ /^\\\\$/, "white-space", "pre-wrap"],
 	];
 
 	function Doc(markup) {
@@ -42,7 +76,7 @@ var Boildown = (function() {
 			var j = i;
 			var block = first(BLOCKS, this.line(i), 1);
 			i = block[0](this, i, end, level, block[1]);
-			if (i == j) { console.log("endless loop at line: "+i); return; }
+			if (i == j) { console.log("endless loop at line: "+i); i++; } // inc to go on...
 			j = i;
 		}
 	}
@@ -91,7 +125,14 @@ var Boildown = (function() {
 		return i;
 	}
 
-	// TODO Quote >>>
+	function bQuote(doc, start, end, level, pattern) {
+		var i = start+1;
+		while (i < end && !pattern.test(doc.line(i))) { i++; }		
+		doc.add("<blockquote "+processOptions(doc.line(start))+">\n"); 
+		doc.process(start+1, i, level+1);
+		doc.add("</blockquote>\n");
+		return i+1;
+	}
 
 	function bDescribe(doc, start, end, level, pattern) {
 		var i = doc.unblock(start, end, pattern);
@@ -244,38 +285,10 @@ var Boildown = (function() {
 	}
 
 	function processOption(val) {
-		const OPTIONS = [
-			// dynamic values
-			[ /^(?: ?[a-zA-Z][-_a-zA-Z0-9]*)+$/ ], // length 1 => classes, else => style
-			[ /^[0-9]{1,3}%$/, "width"],
-			[ /^#[0-9A-Fa-f]{6}$/, "background-color"],
-			[ /^[0-9]{1,2}pt$/, "font-size"],
-			// fixed values
-			[ /^`$/,  "font-family", "monospace", "ff-mono"],
-			[ /^'$/,  "font-family", "sans-serif", "ff-sans"],
-			[ /^"$/,  "font-family", "serif", "ff-serif"],
-			[ /^\*$/, "font-weight", "bold"],
-			[ /^_$/,  "font-style", "italic"],
-			[ /^~$/,  "text-decoration", "line-through"],
-			[ /^<>$/, "text-align", "center"],
-			[ /^<$/,  "text-align", "left"],
-			[ /^>$/,  "text-align", "right"],
-			[ /^<=$/, "float", "left"],
-			[ /^=>$/, "float", "right"],
-			[ /^<<</, "clear", "both"],
-			[ /^\\\\$/, "white-space", "pre-wrap"],
-		];
 		return first(OPTIONS, val, 0);
 		// option for preformatted text (linebreaks as in source)
 		// option for floating?
 		// margin: 0 auto; ( to center)
-	}
-
-	function first(arr, val, idx) {
-		for (var i = 0; i < arr.length; i++) {
-			if (arr[i][idx].test(val))
-				return arr[i]; 			
-		}
 	}
 
 	function processLine(line) {
@@ -302,20 +315,10 @@ var Boildown = (function() {
 	}
 
 	function inlineSubst(line) {
-		return inlineQuotes(line
-			.replace(LINK_REF, "<a href=\"$1\">$2</a>")
-			.replace(LINK_REL, "<a href=\"#sec-$1\">$1</a>")
-			.replace(/`([^`]+)`/g,"<code>$1</code>")
-			.replace(/\*([^*]+)\*/g,"<b>$1</b>")
-			.replace(/_([^_\/]+)_/g,"<em>$1</em>")
-			.replace(/~([^~]+)~/g,"<s>$1</s>")
-			.replace(/\+\+\+([^+].*?)\+\+\+/g, "<ins>$1</ins>")
-			.replace(/---([^-].*?)---/g, "<del>$1</del>")
-			.replace(/\^\[(\d+)\]/g, "<sup><a href='#fnote$1'>$1</a></sup>")
-			.replace(/&amp;([a-zA-Z]{2,10});/g, "&$1;") // unescape HTML entities
-			.replace(/ \\\\(?: |$)/, "<br/>")
-			.replace(/(?:^| )--(?:$| )/g, " &mdash; ")
-			);
+		for (var i = 0; i < INLINE.length; i++) {
+			line = line.replace(INLINE[i][1], INLINE[i][0]);
+		}
+		return inlineQuotes(line);
 	}
 
 	function inlineQuotes(line) {
@@ -325,6 +328,13 @@ var Boildown = (function() {
 			res = res.replace(/([']{2,})(.+?)\1($|[^'])/g, "<q>$2</q>$3");
 		} while (len0 !== res.length);
 		return res;
+	}
+
+	function first(arr, val, idx) {
+		for (var i = 0; i < arr.length; i++) {
+			if (arr[i][idx].test(val))
+				return arr[i]; 			
+		}
 	}
 
 	function isBlank(str) {
