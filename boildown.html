@@ -13,30 +13,50 @@
 
 |[ caption ]|
 |----|
-|! hello, !|
-|! *world* !|
+||! hello, !|
+|! *world* !||
 |====|
 | this is |[#ff9900]
 || a first example ||
 |----|
 
-> this is a quote
-> in two lines
-> :::[>]
-> -- me
-> :::
-
-= > this is a quote
-= > in two lines
-= > :::[>]
-= > -- me
-= > :::
-
-? > this is a quote
-? > in two lines
-? > :::[>]
-? > -- me
-? > :::
+|[]|[20%]['][pad5][->]
+|----|[#4CAF50]
+|! Green !|
+|! !|
+|----|[#4CAF50]
+| 500 |
+| #4CAF50 |
+|----|[#E8F5E9]
+| 50 |
+| #E8F5E9 |
+|----|[#C8E6C9]
+| 100 |
+| #C8E6C9 |
+|----|[#A5D6A7]
+| 200 |
+| #A5D6A7 |
+|----|[#81C784]
+| 300 |
+| #81C784 |
+|----|[#66BB6A]
+| 400 |
+| #66BB6A |
+|----|[#4CAF50]
+| 500 |
+| #4CAF50 |
+|----|[#43A047]
+| 600 |
+| #43A047 |
+|----|[#388E3C]
+| 700 |
+| #388E3C |
+|----|[#2E7D32]
+| 800 |
+| #2E7D32 |
+|----|[#1B5E20]
+| 900 |
+| #1B5E20 |
 
 == Text Formatting ==
 =  \\
@@ -56,57 +76,66 @@
 ? ``*no* _markup_ here`` \\
 ? `*with* _markup_ here`
 
+== Quoting ==
+Inline quoting:
+? a ''quote'', a ''' ''quote'' within a quote'''
+
+Block quotes: 
+? > a quote using
+? > multiple lines
+
+Options can be given instead the first line of the quote:
+? > [\\]
+? > a quote using
+? > multiple lines
+? > wrapping like 
+? > source
+
+Using minipages to position a cite footer.
+? > ...we fell that we're reasonably be well educated 
+? > and the kids would be lucky 
+? > if they are as well educated as we are, 
+? > which is a terrible crime, 
+? > because we ain't educated at all. 
+? > We're only beginning to realize how little we know 
+? > about the nature of reality.
+? > :::[>]
+? > -- Russell Ackoff, _Speech on Systems_
+? > :::
+
 == Links ==
 
 
-
 == Tables ==
-* `|[ caption ]|` `<table>`
-* `|-----------|` `<tr>` (no border)
-* `|! heading !|` `<th>` (no border)
-* `|===========|` `<tr>` (border top)
-* `|   cell    |` `<td>` (no border)
-* `||  cell    |` `<td>` (border left)
-* `|   cell   ||` `<td>` (border right)
 
 
+== Images == 
 
-let `me *and* you _be_` test
-----
-*i am _very_ bold*
-_so are `you`_		
-----
-``but this *is* litterally _added_`` and `` this *as* ````_well_``
 
-```
-  Some line
-! the ! can be used to highlight a line
-  some other line
-```
+== Lists == 
 
-```[plain]
-here <b> is escaped </b>
-```
 
-Some +++text+++ got ---deleted---
+== Listings ==
 
-Other text is a ''quote''^[1].
+
+== Minipages ==
+
 <<<
-:::[40][>]
-::::[50]
+:::[40%][>]
+::::[50%]
 this is nested
 ::::
-::::[50][#C0CA33]
+::::[50%][#C0CA33]
 and this two
 ::::
 this is within the box
 :::
 
-:::[30][<]
+:::[30%][<]
 as is this
 ::: 
 
-:::[20][<>][#E6EE9C]
+:::[20%][<>][#E6EE9C]
 and this
 :::  
 

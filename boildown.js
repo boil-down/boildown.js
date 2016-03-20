@@ -121,9 +121,15 @@ var Boildown = (function() {
 	}
 
 	function blockQuote(doc, start, end, level) {
+		//TODO options, an option for white-space wrapping
 		var i = start;
 		while (i < end && doc.isQuote(i)) { doc.deIndent(i++); }
-		doc.add("<blockquote>\n"); 
+		var options = "";
+		if (doc.starts(start, "[")) {
+			options = processOptions(doc.line(start));
+			start++;
+		}
+		doc.add("<blockquote "+options+">\n"); 
 		processLines(doc, start, i, level+1);
 		doc.add("</blockquote>\n");
 		return i;
@@ -193,21 +199,30 @@ var Boildown = (function() {
 			var line = doc.line(i);
 			if (i == start) { doc.add("<table "+processOptions(line.startsWith("|[") ? line : "", "user")+">"); }
 			if (doc.matches(i, /\|\[ /)) {
-				doc.add("<caption>"+processLine(line.substring(line.indexOf(" "), line.indexOf("]|")))+"</caption>");
+				var side = i === start ? "top" : "bottom";
+				var caption = line.substring(line.indexOf(" "), line.indexOf("]|"));
+				if (!isBlank(caption)) {
+					doc.add("<caption class='"+side+"'>"+processLine(caption)+"</caption>");
+				}
 			}
 			if (doc.matches(i, /^\|[-=]/)) {
 				if (!firstRow) { doc.add("</tr>"); }
 				firstRow = false;
-				doc.add("<tr "+processOptions(doc.line(i), line.indexOf('=') < 0 ? "": "border")+">"); //TODO border or not via class
+				var classes = line.indexOf('=') < 0 ? "" : "tborder";
+				//TODO end table with border doesn't work as the tr is empty
+				doc.add("<tr "+processOptions(doc.line(i), classes)+">");
 			} else if (doc.matches(i, /\|+!? /)) {
+				//TODO col and rowspan (needed as there is no fallback language!)
 				if (firstRow) { doc.add("<tr>"); }
 				firstRow = false;
 				var line = doc.line(i);
-				var bangIdx = line.indexOf("!");
-				var tag = bangIdx === 1 || bangIdx === 2 ? "th" : "td";
-				doc.add("<"+tag+" "+processOptions(line, line.charAt(1) === '|' ? "lborder" : "")+">"); // TODO border and cut only real options at the end
-				doc.add(processLine(line.substring(line.indexOf(" "), line.lastIndexOf("|")-1)));
-				doc.add("</"+tag+">"); // TODO add a feature that does keep cell open so one can use mutliline content???
+				var tag = line.lastIndexOf("|!", 3) >= 0 ? "th" : "td";
+				var eom = line.lastIndexOf("|");
+				var som = line.lastIndexOf(" ", eom);
+				var classes = (line.indexOf("||") === 0 ? " lborder" : "")+(line.indexOf("||", som) >= som ? " rborder" : "");
+				doc.add("<"+tag+" "+processOptions(line.substring(eom), classes)+">");
+				doc.add(processLine(line.substring(line.indexOf(" "), som)));
+				doc.add("</"+tag+">");
 			}
 			i++;
 		}
@@ -252,28 +267,51 @@ var Boildown = (function() {
 		while (start >= 0) {
 			var end = line.indexOf(']', start);
 			var val = line.substring(start+1, end);
-			if (/^(?: ?[a-zA-Z][-_a-zA-Z0-9]*)+$/.test(val)) {
-				classes+=" "+val;
-			} else if (/^[0-9]{1,3}$/.test(val)) {
-				styles+=" width:"+val+"%;"; // use width attribute?
-			} else if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
-				styles+=" background-color: "+val+";";
-			} else if (val === "<>") {
-				styles+= " text-align: center;"
-			} else if (val === "<") {
-				styles+= " text-align: left;"
-			} else if (val === ">") {
-				styles+= " text-align: right;"
-			} else if (val === "++") {
-				styles+= " font-size: x-large;"; //TODO and so on...(medium, large, small, x-small)
+			var option = processOption(val);
+			if (option) {
+				if (option.length === 1) {
+					classes+=" "+val;
+				} else {
+					styles+=" "+option[1]+":"+(option.length > 2 ? option[2] : val)+";";
+				}
+				if (option.length > 3) {
+					classes+=" "+option[3];
+				}
 			}
-			// option for floating?
-			// TODO option for preformatted text (linebreaks as in source)
-			// padding? maybe "~px"
-			// margin: 0 auto; ( to center)
 			start = line.indexOf('[', end);
 		}
 		return (classes ? "\n\tclass='"+classes+"'" : "") + (styles ? "\n\tstyle='"+styles+"'" : "");
+	}
+
+
+	function processOption(val) {
+		const OPTIONS = [
+			// dynamic values
+			[ /^(?: ?[a-zA-Z][-_a-zA-Z0-9]*)+$/ ], // length 1 => classes, else => style
+			[ /^[0-9]{1,3}%$/, "width"],
+			[ /^#[0-9A-Fa-f]{6}$/, "background-color"],
+			[ /^[0-9]{1,2}pt$/, "font-size"],
+			// fixed values
+			[ /^`$/,  "font-family", "monospace", "ff-mono"],
+			[ /^'$/,  "font-family", "sans-serif", "ff-sans"],
+			[ /^"$/,  "font-family", "serif", "ff-serif"],
+			[ /^\*$/, "font-weight", "bold"],
+			[ /^_$/,  "font-style", "italic"],
+			[ /^~$/,  "text-decoration", "line-through"],
+			[ /^<>$/, "text-align", "center"],
+			[ /^<$/,  "text-align", "left"],
+			[ /^>$/,  "text-align", "right"],
+			[ /^<-$/,  "float", "left"],
+			[ /^->$/,  "float", "right"],
+			[ /^\\\\$/, "white-space", "pre-wrap"],
+		];
+		for (var i = 0; i < OPTIONS.length; i++) {
+			if (OPTIONS[i][0].test(val))
+				return OPTIONS[i]; 			
+		}
+		// option for preformatted text (linebreaks as in source)
+		// option for floating?
+		// margin: 0 auto; ( to center)
 	}
 
 	function processLine(line) {
@@ -320,7 +358,7 @@ var Boildown = (function() {
 		var res = line;		
 		do {
 			var len0 = res.length;
-			res = res.replace(/([']{2,})(.+)\1/g, "<q>$2</q>");
+			res = res.replace(/([']{2,})(.+?)\1($|[^'])/g, "<q>$2</q>$3");
 		} while (len0 !== res.length);
 		return res;
 	}
