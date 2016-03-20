@@ -30,7 +30,7 @@ var Boildown = (function() {
 		[ bNQuote,    /^> / ],
 		[ bList,      /^\* / ],
 		[ bList,      /^(#|[0-9]{1,2}|[a-zA-Z])\. / ],
-		[ bHeading,   /^[=]{2,}(.+)[=]{2,}(\[.*\])?[ \t]*$/ ],
+		[ bHeading,   /^[=]{2,}(.+?)[=]{2,}(\[.*\])?[ \t]*$/ ],
 		[ bTable,     /^\|+(!?.+?|-+)\|(?:\[.*\])?$/ ],
 		[ bParagraph, /^(.|$)/ ]
 	];
@@ -110,7 +110,7 @@ var Boildown = (function() {
 
 	function bHeading(doc, start, end, n, pattern) {
 		if (n == 2 && doc.levels[1] === 0) { n = 1; }
-		// TODO auto-subtitle
+		if (start > 0 && pattern.test(doc.line(start-1))) { n++; }
 		doc.levels[n]++;
 		var parts = pattern.exec(doc.line(start));
 		doc.add("<h"+n+processOptions(parts[2])+">"+processLine(parts[1])+"</h"+n+">\t");
