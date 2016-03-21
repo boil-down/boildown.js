@@ -4,7 +4,7 @@ var Boildown = (function() {
 
 	const INLINE = [
 		["<br/>",           / \\\\(?: |$)/ ],
-		["$1&mdash;$1",     /(^| )--($| )/g ],
+		["$1&mdash;$2",     /(^| )--($| )/g ],
 		["&hellip;",        /\.\.\./g ], 
 		["<code>$1</code>", /`([^`]+)`/g ],
 		["<b>$1</b>",       /\*([^*]+)\*/g ],
@@ -13,6 +13,7 @@ var Boildown = (function() {
 		["<ins>$1</ins>",   /\+\+\+([^+].*?)\+\+\+/g ],
 		["<del>$1</del>",   /---([^-].*?)---/g ],
 		["&$1;",            /&amp;([a-zA-Z]{2,10});/g ], // unescape HTML entities
+		["<q>$2</q>$3",     /([']{2,})(.+?)\1($|[^'])/g, 5],
 		["<a href=\"$1\">$2</a>", /\[\[((?:https?:\/\/)?(?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20}) (.+?)\]\]/g ],
 		["<a href=\"#sec-$1\">$1</a>", /\[\[(\d+(?:\.\d+)*)\]\]/g ],
 		["<sup><a href='#fnote$1'>$1</a></sup>", /\^\[(\d+)\]/g ],
@@ -101,9 +102,15 @@ var Boildown = (function() {
 	function bParagraph(doc, start, end, level) {
 		var line = doc.line(start);
 		if (isBlank(line)) {
-			// TODO possible end of par
+			doc.add("\n");
 		} else {
+			if (doc.html.endsWith("</p>")) {
+				doc.html = doc.html.substring(0, doc.html.length-4);
+			} else {
+				doc.add("\n<p>");
+			}
 			doc.add(processLine(line)+"\n");
+			doc.add("</p>");
 		}
 		return start+1;
 	}
@@ -144,7 +151,7 @@ var Boildown = (function() {
 		var content = escapeHTML(doc.html.substring(l0));
 		doc.html=doc.html.substring(0, l0);
 		doc.add(example);
-		doc.add("</pre></td><td>\n<pre class='source'>\n"); 
+		doc.add("</pre></td><td>\n<pre class='source'>"); 
 		doc.add(content);
 		doc.add("</pre>\n</td></tr></table>");
 		return i;
@@ -268,7 +275,7 @@ var Boildown = (function() {
 		while (start >= 0) {
 			var end = line.indexOf(']', start);
 			var val = line.substring(start+1, end);
-			var option = processOption(val);
+			var option = first(OPTIONS, val, 0);
 			if (option) {
 				if (option.length === 1) {
 					classes+=" "+val;
@@ -282,13 +289,6 @@ var Boildown = (function() {
 			start = line.indexOf('[', end);
 		}
 		return (classes ? "\n\tclass='"+classes+"'" : "") + (styles ? "\n\tstyle='"+styles+"'" : "");
-	}
-
-	function processOption(val) {
-		return first(OPTIONS, val, 0);
-		// option for preformatted text (linebreaks as in source)
-		// option for floating?
-		// margin: 0 auto; ( to center)
 	}
 
 	function processLine(line) {
@@ -316,18 +316,13 @@ var Boildown = (function() {
 
 	function inlineSubst(line) {
 		for (var i = 0; i < INLINE.length; i++) {
-			line = line.replace(INLINE[i][1], INLINE[i][0]);
+			var lmax = INLINE[i].length > 2 ? INLINE[i][2] : 1;			
+			do {			
+				var before = line.length;
+				line = line.replace(INLINE[i][1], INLINE[i][0]);
+			} while (--lmax > 0 && before !== line.length);
 		}
-		return inlineQuotes(line);
-	}
-
-	function inlineQuotes(line) {
-		var res = line;		
-		do {
-			var len0 = res.length;
-			res = res.replace(/([']{2,})(.+?)\1($|[^'])/g, "<q>$2</q>$3");
-		} while (len0 !== res.length);
-		return res;
+		return line;
 	}
 
 	function first(arr, val, idx) {
