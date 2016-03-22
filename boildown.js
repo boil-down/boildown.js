@@ -6,14 +6,19 @@ var Boildown = (function() {
 		["<br/>",           / \\\\(?: |$)/ ],
 		["$1&mdash;$2",     /(^| )--($| )/g ],
 		["&hellip;",        /\.\.\./g ], 
-		["<code>$1</code>", /`([^`]+)`/g ],
-		["<b>$1</b>",       /\*([^*]+)\*/g ],
-		["<em>$1</em>",     /_([^_\/]+)_/g ],
-		["<s>$1</s>",       /~([^~]+)~/g ],
-		["<ins>$1</ins>",   /\+\+\+([^+].*?)\+\+\+/g ],
-		["<del>$1</del>",   /---([^-].*?)---/g ],
 		["&$1;",            /&amp;([a-zA-Z]{2,10});/g ], // unescape HTML entities
-		["<q>$2</q>$3",     /([']{2,})(.+?)\1($|[^'])/g, 5],
+		["<tt>$1</tt>",     /``(..*?)``/g ],
+		["<s>$1</s>",       /~~(..*?)~~/g ],
+		["<kbd>$1</kbd>",   /@@(..*?)@@/g ],
+		["<del>$1</del>",   /--(..*?)--/g ],
+		["<ins>$1</ins>",   /\+\+(..*?)\+\+/g ],
+		["<q>$2</q>$3",     /([']{2,})(.*?[^'])\1($|[^'])/g, 5],
+		["<sub>$2</sub>$3", /([_]{2,})(.*?[^_])\1($|[^_])/g, 5],
+		["<sup>$2</sup>$3", /([\^]{2,})(.*?[^\^])\1($|[^\^])/g, 5 ],
+		["<code>$1</code>", /`(..*?)`/g ],
+		["<b>$1</b>",       /\*(..*?)\*/g ],
+		["<em>$1</em>",     /_(..*?)_/g ],
+		["<span style='color: $1$2;'>$3</span>", /#(?:#([a-z]{1,10})|(#[0-9A-Fa-f]{6}))#(..*?)##/g ],
 		["<a href=\"$1\">$2</a>", /\[\[((?:https?:\/\/)?(?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20}) (.+?)\]\]/g ],
 		["<a href=\"#sec-$1\">$1</a>", /\[\[(\d+(?:\.\d+)*)\]\]/g ],
 		["<sup><a href='#fnote$1'>$1</a></sup>", /\^\[(\d+)\]/g ],
@@ -21,8 +26,8 @@ var Boildown = (function() {
 
 	const BLOCKS    = [
 		[ bMinipage,  /^:::/ ],
-		[ bParagraph, /^\+\+\+/ ], //TODO
-		[ bParagraph, /^---(?:$|[^-])/ ], //TODO
+		[ bInserted,  /^\+\+\+/ ], //TODO
+		[ bDeleted,   /^---(?:$|[^-])/ ], //TODO
 		[ bListing,   /^```/ ],
 		[ bQuote,     /^>>>/ ],
 		[ bLine,      /^----/ ],
@@ -33,6 +38,7 @@ var Boildown = (function() {
 		[ bList,      /^(#|[0-9]{1,2}|[a-zA-Z])\. / ],
 		[ bHeading,   /^[=]{2,}(.+?)[=]{2,}(\[.*\])?[ \t]*$/ ],
 		[ bTable,     /^\|+(!?.+?|-+)\|(?:\[.*\])?$/ ],
+		[ bImage,     /^(\(\(\)\)|\(\[..*?\]\))(?:\[.*\])?$/ ],
 		[ bParagraph, /^(.|$)/ ]
 	];
 
@@ -141,6 +147,24 @@ var Boildown = (function() {
 		return i+1;
 	}
 
+	function bDeleted(doc, start, end, level, pattern) {
+		var i = start+1;
+		while (i < end && !pattern.test(doc.line(i))) { i++; }
+		doc.add("<del "+processOptions(doc.line(start))+">\n"); 
+		doc.process(start+1, i, level);
+		doc.add("</del>\n");		
+		return i+1;
+	}
+
+	function bInserted(doc, start, end, level, pattern) {
+		var i = start+1;
+		while (i < end && !pattern.test(doc.line(i))) { i++; }
+		doc.add("<ins "+processOptions(doc.line(start))+">\n"); 
+		doc.process(start+1, i, level);
+		doc.add("</ins>\n");		
+		return i+1;
+	}
+
 	function bDescribe(doc, start, end, level, pattern) {
 		var i = doc.unblock(start, end, pattern);
 		doc.add("<table class='describe'><tr><td><pre class='source'>");
@@ -193,6 +217,15 @@ var Boildown = (function() {
 		}
 		doc.add("</pre>\n");
 		return i+1;
+	}
+
+	function bImage(doc, start, end, level, pattern) {
+		var i = start;
+		while (i < end && pattern.test(doc.line(i))) {
+			//TODO
+			i++;
+		}
+		return i;
 	}
 
 	function bTable(doc, start, end, level, pattern) {
@@ -296,21 +329,27 @@ var Boildown = (function() {
 	}
 
 	function processInline(line) {
-		var html = "";
+		var plains = [];		
+		var stripped = "";
 		var start = 0;
-		var end = line.indexOf("``", start);
+		var end = line.indexOf("{{", start);
 		while (end >= 0)
 		{
 			if (end > start) { // add text up till literal section
-				html+=inlineSubst(line.substring(start, end));
+				stripped+=line.substring(start, end);
 			}
 			start=end+2;
-			end=line.indexOf("``", start);
-			html+="<code>"+line.substring(start, end)+"</code>";
+			end=line.indexOf("}}", start);
+			stripped+="!!"+plains.length+"!!";			
+			plains.push(line.substring(start, end));
 			start=end+2;
-			end=line.indexOf("``", start);
+			end=line.indexOf("{{", start);
 		}
-		html+=inlineSubst(line.substring(start, line.length));
+		stripped+=line.substring(start, line.length);
+		var html = inlineSubst(stripped);
+		for (var i = 0; i < plains.length; i++) {
+			html=html.replace("!!"+i+"!!", plains[i]);
+		}
 		return html;
 	}
 

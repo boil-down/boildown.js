@@ -3,9 +3,11 @@
 .column { width: 40%; margin: 5%; float: left; position: relative; }
 
 h1,h2,h3 { clear: both; }
-
+p { margin: 0; padding: 0; }
+p + p, * + p { margin: 0.6em 0 0.4em 0; padding: 0; }
 textarea { width: 100%; }
-code { padding: 1px 5px; background-color: #eee; white-space: pre-wrap; }
+code { padding: 1px 5px; background-color: #ddd; white-space: pre-wrap; }
+kbd { background-color: #bbb; display: inline-block; padding: 5px; border-radius: 4px; }
 del { color: #D50000; }
 ins { color: #1B5E20; text-decoration: none; }
 pre { padding: 5px; margin: 3px 0; line-height: 1.4em; background-color: #e9e9e9; }

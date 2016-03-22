@@ -9,31 +9,62 @@
 	<div class='column'>
 		<h1>boildown</h1>
 		<textarea id="input" rows="20">
-== boildown ==
-=== a markup language ===
-
+== Hello, World! ==
+=== the boildown markup language ===
 
 == Text Formatting ==
-=  \\
-
+Basics, 1 character marks:
 ? *bold*
 
-? _italic_
+? _emphasis_
 
-? ~strikethrough~
+? `code`, ```
 
-? +++inserted+++ 
+Advanced, 2 character marks:
+? ~~strikethrough~~
 
-? ---deleted--- 
+? ``typewriter``
 
-? `code`
+? @@keyboard@@
 
-? ``*no* _markup_ here`` \\
-? `*with* _markup_ here`
+? ++inserted++ 
+
+? --deleted-- 
+
+? ##blue#colour##
+? ##FF0000#colour##
+
+Nestable, 2 or more character marks:
+? ^^superscript^^
+? ^^a^^^b^^^ ^^
+? ^^^b^^a^^ ^^^
+
+? __subscript__
+? __a___b___ __
+? ___b__a__ ___
+
+Escaping inline markup using `{{{{}}`...`{{}}}}`:
+? {{*plain* _text_}}
+? `{{*plain* _text_}}`
+? *plain {{_text_}}*
+
+== Headings ==
+Use at least two `=` on each side of a heading:
+? == Default Level ==
+
+When two headings directly follow each other the second is considered a subtitle:
+? == Main ==
+? == Sub ==
+
+Headings are nested using minipages:
+? :::
+? == Nested one level ==
+? :::
 
 == Quoting ==
 Inline quoting:
 ? a ''quote'', a ''' ''quote'' within a quote'''
+? likewise, a '' '''quote''' within a quote''
 
 Block quotes: 
 ? > a quote using
@@ -60,6 +91,16 @@ Using minipages to position a cite footer.
 ? > :::[>]
 ? > -- Russell Ackoff, _Speech on Systems_
 ? > :::
+
+== Editing ==
+
+? ---
+? deleted content
+? ---
+
+? +++
+? added content
+? +++
 
 == Links ==
 
