@@ -9,10 +9,10 @@
 	<div class='column'>
 		<h1>boildown</h1>
 		<textarea id="input" rows="20">
-== Hello, World! ==
+=== Hello, World! ===
 === a brief but complete boildown user manual ===
 
-== Text Formatting ==
+=== Text Formatting ===
 Basics, 1 character marks:
 ? *bold*
 
@@ -48,7 +48,7 @@ Escaping inline markup using `{{{{}}`...`{{}}}}`:
 ? `{{*plain* _text_}}`
 ? *plain {{_text_}}*
 
-== Links ==
+=== Links ===
 Links are given in pairs of `[[_URL_ _label_]]`:
 ? [[/relative/url label]]
 
@@ -63,7 +63,7 @@ Link creation can be escaped as usual:
 
 ? {{http://dilbert.com/}}
 
-== Editing ==
+=== Editing ===
 
 ? ---
 ? deleted content
@@ -73,9 +73,9 @@ Link creation can be escaped as usual:
 ? added content
 ? +++
 
-== Headings ==
+=== Headings ===
 Use at least two `=` on each side of a heading:
-? == Default Level ==
+? === Default Level ===
 
 When two headings directly follow each other the second is considered a subtitle:
 ? == Main ==
@@ -83,10 +83,13 @@ When two headings directly follow each other the second is considered a subtitle
 
 Headings are nested using minipages:
 ? :::
-? == Nested one level ==
+? === Nested one level ===
+? ::::
+? === Nested two levels ===
+? ::::
 ? :::
 
-== Quoting ==
+=== Quoting ===
 Inline quoting:
 ? a ''quote'', a ''' ''quote'' within a quote'''
 ? likewise, a '' '''quote''' within a quote''
@@ -113,13 +116,24 @@ Using minipages to position a cite footer.
 ? > We're only beginning to realize 
 ? > how little we know 
 ? > about the nature of reality.
-? > :::[>]
+? > :::{footer}[>]
 ? > -- Russell Ackoff, _Speech on Systems_
 ? > :::
 
-== Images == 
+=== Images ===
+Images are block, that means they can have [[#options options]].
+? ((bee.png bee))
 
-== Lists ==
+A gallery or _figure_ is done by a sequence of images, the caption `([`...`])` is optional.
+? ([ bees ])[<>]
+? ((bee.png bee 1))
+? ((bee.png bee 2))
+? ((bee.png bee 3))
+
+? ((bee.png))
+? ([ a *bee* ])
+
+=== Lists ===
 Ordered lists start at the number of the first item given.
 The number or letter has to followed by a dot `.` and a space:
 ? 10. one
@@ -173,7 +187,7 @@ per level.
 ?     ```
 
 
-== Listings ==
+=== Listings ===
 ? ```
 ? literally
 ? with _no_ markup inside
@@ -185,7 +199,7 @@ Highlight lines...
 ? ! with _no_ markup inside
 ? ```
 
-== Tables ==
+=== Tables ===
 |[ caption ]|
 |----|
 ||! hello, !|
@@ -233,8 +247,8 @@ Highlight lines...
 | 900 |
 | #1B5E20 |
 
-== Minipages ==
-? :::[<>][#F44336]
+=== Minipages ===
+? :::{aside}[<>][#F44336]
 ? ::::[50%][#2196F3][<=]
 ? another page within a page
 ? ::::

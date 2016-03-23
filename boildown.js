@@ -23,12 +23,13 @@ var Boildown = (function() {
 		["$1<a href=\"$2$3\">$3</a>", /(^|[^=">])(https?:\/\/|www\.)((?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20})/g ],
 		["<a href=\"#sec-$1\">$1</a>", /\[\[(\d+(?:\.\d+)*)\]\]/g ],
 		["<sup><a href='#fnote$1'>$1</a></sup>", /\^\[(\d+)\]/g ],
+		//TODO samp/var/abbr/dfn
 	];
 
 	const BLOCKS    = [
-		[ bMinipage,  /^:::/ ],
-		[ bInserted,  /^\+\+\+/ ], //TODO
-		[ bDeleted,   /^---(?:$|[^-])/ ], //TODO
+		[ bMinipage,  /^(:{3,9})(?:\{([a-z0-9]{1,20})\})?/ ],
+		[ bInserted,  /^\+\+\+/ ],
+		[ bDeleted,   /^---(?:$|[^-])/ ],
 		[ bListing,   /^```/ ],
 		[ bQuote,     /^>>>/ ],
 		[ bLine,      /^----/ ],
@@ -37,9 +38,9 @@ var Boildown = (function() {
 		[ bNQuote,    /^> / ],
 		[ bList,      /^\* / ],
 		[ bList,      /^(#|[0-9]{1,2}|[a-zA-Z])\. / ],
-		[ bHeading,   /^[=]{2,}(.+?)[=]{2,}(\[.*\])?[ \t]*$/ ],
+		[ bHeading,   /^={3,}(.+?)={3,}(?:\{([a-z0-9]+)\})?(\[.*\])?[ \t]*$/ ],
 		[ bTable,     /^\|+(!?.+?|-+)\|(?:\[.*\])?$/ ],
-		[ bImage,     /^(\(\(\)\)|\(\[..*?\]\))(?:\[.*\])?$/ ],
+		[ bImage,     /^(?:\(\(((?:(?:https?:\/\/)?(?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20}))( [-+a-zA-Z0-9 ,.:]+)?\)\)|\(\[..*?\]\))(?:\[.*\])?$/ ],
 		[ bParagraph, /^(.|$)/ ]
 	];
 
@@ -64,6 +65,9 @@ var Boildown = (function() {
 		[ /^<<</, "clear", "both"],
 		[ /^\\\\$/, "white-space", "pre-wrap"],
 	];
+
+	const TAGS = ["address", "article", "aside", "details", "figcaption", 
+		"figure", "footer", "header", "menu", "nav", "section"];
 
 	function Doc(markup) {
 		this.markup = markup;
@@ -149,8 +153,11 @@ var Boildown = (function() {
 		if (n == 2 && doc.levels[1] === 0) { n = 1; }
 		if (start > 0 && pattern.test(doc.line(start-1))) { n++; }
 		doc.levels[n]++;
-		var parts = pattern.exec(doc.line(start));
-		doc.add("<h"+n+" "+doc.styles(parts[2])+">"+processLine(parts[1])+"</h"+n+">\t");
+		var textIdStyle = pattern.exec(doc.line(start));
+		if (textIdStyle[2]) {
+			doc.add("<a id=\""+textIdStyle[2]+"\"></a>");
+		}
+		doc.add("<h"+n+" "+doc.styles(textIdStyle[3])+">"+processLine(textIdStyle[1])+"</h"+n+">\t");
 		return start+1;
 	}
 
@@ -242,9 +249,33 @@ var Boildown = (function() {
 
 	function bImage(doc, start, end, level, pattern) {
 		var i = start;
+		var images = [];
+		var caption = "";
+		var style = "";
+		var first = false;
 		while (i < end && pattern.test(doc.line(i))) {
-			//TODO
+			var line = doc.line(i);
+			if (line.startsWith("((")) {
+				images.push(pattern.exec(line));
+			} else {
+				first = i === start;
+				caption = "<figcaption>"+processLine(line.substring(2, line.lastIndexOf("])")))+"</figcaption>";
+				style = doc.styles(line.substring(line.lastIndexOf("])")+2));
+			}
 			i++;
+		}
+		if (images.length > 1 || caption) {
+			doc.add("<figure "+style+">");
+		}
+		if (caption && first) { doc.add(caption); }
+		for (var j = 0; j < images.length; j++) {
+			var title = images[j][2];
+			title = title ? "title='"+title+"' alt='"+title+"'" : "";
+			doc.add("<img src=\""+images[j][1]+"\" "+doc.styles(images[j][0])+" "+title+" />");
+		}
+		if (caption && !first) { doc.add(caption); }
+		if (images.length > 1 || caption) {
+			doc.add("</figure>");			
 		}
 		return i;
 	}
@@ -309,13 +340,17 @@ var Boildown = (function() {
 	function itemStart (c) { return c === '#' ? 1 : c.charCodeAt() - itemType(c).charCodeAt() + 1; } 
 	function itemType  (c) { return /\d|#/.test(c) ? '1' : /i/i.test(c) ? c : /[A-Z]/.test(c) ? 'A' : 'a'; }
 
-	function bMinipage(doc, start, end, level) {
+	function bMinipage(doc, start, end, level, pattern) {
 		var line = doc.line(start);
-		var depth = line.search(/[^:]/);
-		var i = doc.scan(start+1, end, new RegExp("^[:]{"+depth+"}($|[^:])"));
-		doc.add("<div"+doc.styles(line, "bd-mp")+">\n\t");		
+		var page = pattern.exec(line);
+		var i = doc.scan(start+1, end, new RegExp("^"+page[1]+"($|[^:])"));
+		var tagged = page.length > 2 && page[2];
+		var retag = tagged && TAGS.indexOf(page[2]) >= 0;
+		var tag = retag? page[2] : "div";
+		var classes = "bd-mp "+(tagged && !retag ? page[2] : "");
+		doc.add("<"+tag+" "+doc.styles(line, classes)+">\n\t");
 		doc.process(start+1, i, level+1); 
-		doc.add("</div>\n");
+		doc.add("</"+tag+">\n");
 		return i+1;
 	}
 
@@ -331,8 +366,9 @@ var Boildown = (function() {
 			if (style) {
 				switch (style.length) {
 					case 1:	classes+=" "+val; break;
-					case 3: classes+=" "+style[3]; /* intentianal fall-through */
-					case 2: styles+=" "+style[1]+":"+(style.length > 2 ? style[2] : val)+";";
+					case 4: classes+=" "+style[3]; /* intentianal fall-through */
+					case 3: val = style[2]; /* intentianal fall-through */
+					case 2: styles+=" "+style[1]+":"+val+";";
 				}
 			}
 			start = line.indexOf('[', end);
@@ -362,14 +398,14 @@ var Boildown = (function() {
 			end=line.indexOf("{{", start);
 		}
 		stripped+=line.substring(start, line.length);
-		var html = inlineSubst(stripped);
+		var html = substitute(stripped);
 		for (var i = 0; i < plains.length; i++) {
 			html=html.replace("!!"+i+"!!", plains[i]);
 		}
 		return html;
 	}
 
-	function inlineSubst(line) {
+	function substitute(line) {
 		for (var i = 0; i < INLINE.length; i++) {
 			var lmax = INLINE[i].length > 2 ? INLINE[i][2] : 1;			
 			do {			
