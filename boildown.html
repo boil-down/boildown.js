@@ -48,6 +48,11 @@ Escaping inline markup using `{{{{}}`...`{{}}}}`:
 ? `{{*plain* _text_}}`
 ? *plain {{_text_}}*
 
+New paragraphs start after blank lines or within a new block. 
+Manual line breaks are forced using `\\`:
+? manual line \\ break
+
+
 === Links ===
 Links are given in pairs of `[[_URL_ _label_]]`:
 ? [[/relative/url label]]
@@ -78,10 +83,10 @@ Use at least two `=` on each side of a heading:
 ? === Default Level ===
 
 When two headings directly follow each other the second is considered a subtitle:
-? == Main ==
-? == Sub ==
+? === Main ===
+? === Sub ===
 
-Headings are nested using minipages:
+Headings nested with minipages:
 ? :::
 ? === Nested one level ===
 ? ::::
@@ -94,11 +99,13 @@ Inline quoting:
 ? a ''quote'', a ''' ''quote'' within a quote'''
 ? likewise, a '' '''quote''' within a quote''
 
-Block quotes: 
+Simple block quotes start with `> ` (space!): 
 ? > a quote using
 ? > multiple lines
 
-Options can be given instead the first line of the quote:
+? > > double quoting...
+
+Advanced block quotes `>>>` can be used with options to preserve the sources wrapping:
 ? >>>[\\]
 ? a quote using
 ? multiple lines
@@ -107,10 +114,8 @@ Options can be given instead the first line of the quote:
 ? >>>
 
 Using minipages to position a cite footer.
-? > [...] we fell that reasonably 
-? > we'll well educated 
-? > and the kids would be lucky, if  
-? > they are as well educated as we are, 
+? > [...] we fell that [...] kids would be lucky, 
+? > if they are as well educated as we are, 
 ? > which is a terrible crime, 
 ? > because we ain't educated at all. 
 ? > We're only beginning to realize 
@@ -121,8 +126,11 @@ Using minipages to position a cite footer.
 ? > :::
 
 === Images ===
-Images are block, that means they can have [[#options options]].
-? ((bee.png bee))
+Images are given in format `((_URL_ _title_))`:
+? ((bee.png a bee))
+
+They are blocks with [[#options options]], here to make image float right:
+? ((bee.png a bee))[=>]
 
 A gallery or _figure_ is done by a sequence of images, the caption `([`...`])` is optional.
 ? ([ bees ])[<>]
@@ -130,12 +138,13 @@ A gallery or _figure_ is done by a sequence of images, the caption `([`...`])` i
 ? ((bee.png bee 2))
 ? ((bee.png bee 3))
 
+If the caption isn't stated first, the caption goes below the images:
 ? ((bee.png))
 ? ([ a *bee* ])
 
 === Lists ===
 Ordered lists start at the number of the first item given.
-The number or letter has to followed by a dot `.` and a space:
+The number or letter has to followed by a dot and a space `n. `:
 ? 10. one
 ? #. two
 ? 4. three
