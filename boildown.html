@@ -10,7 +10,7 @@
 		<h1>boildown</h1>
 		<textarea id="input" rows="20">
 == Hello, World! ==
-=== the boildown markup language ===
+=== a brief but complete boildown user manual ===
 
 == Text Formatting ==
 Basics, 1 character marks:
@@ -21,15 +21,15 @@ Basics, 1 character marks:
 ? `code`, ```
 
 Advanced, 2 character marks:
-? ~~strikethrough~~
-
 ? ``typewriter``
 
-? @@keyboard@@
+? @@keyboard@@, @@@@@
 
-? ++inserted++ 
+? ~~strikethrough~~
 
 ? --deleted-- 
+
+? ++inserted++ 
 
 ? ##blue#colour##
 ? ##FF0000#colour##
@@ -47,6 +47,31 @@ Escaping inline markup using `{{{{}}`...`{{}}}}`:
 ? {{*plain* _text_}}
 ? `{{*plain* _text_}}`
 ? *plain {{_text_}}*
+
+== Links ==
+Links are given in pairs of `[[_URL_ _label_]]`:
+? [[/relative/url label]]
+
+? [[http://dilbert.com/ dilbert]]
+
+Links without label are just given plain but they have to start with `http/s` or `www` to be auto-linked:
+
+? http://dilbert.com/
+? www.youtube.com
+
+Link creation can be escaped as usual:
+
+? {{http://dilbert.com/}}
+
+== Editing ==
+
+? ---
+? deleted content
+? ---
+
+? +++
+? added content
+? +++
 
 == Headings ==
 Use at least two `=` on each side of a heading:
@@ -92,18 +117,73 @@ Using minipages to position a cite footer.
 ? > -- Russell Ackoff, _Speech on Systems_
 ? > :::
 
-== Editing ==
+== Images == 
 
-? ---
-? deleted content
-? ---
+== Lists ==
+Ordered lists start at the number of the first item given.
+The number or letter has to followed by a dot `.` and a space:
+? 10. one
+? #. two
+? 4. three
 
-? +++
-? added content
-? +++
+`#` can be used instead of an actual number or letter:
+? #. one
+? #. two
 
-== Links ==
+Equally lists can use lower-case letters:
+? c. cesar
+? d. delta
+? #. eta
 
+Or upper-case letters:
+? A. Alpha
+? #. Beta
+
+And even roman numbers work, but here the lists have to start with `I.`
+
+? I. one
+? #. two
+? #. three
+
+In case of letters a specified item cannot have multiple letters. 
+Instead the placeholder `#.` should be used.
+
+The `*` is used for bullet lists. Again it has to be followed by a space.
+
+? * one
+? * other
+
+Any content can be nested within an item. 
+All content that should be nested has to be indented by 2 spaces and/or tabs
+per level.
+
+? 1. one
+?   further text in one
+?   ----
+?   and further text
+? 
+?   also with a new paragraph
+? #. second item
+?   a. another nested list
+?   #. with items
+?     and nested content
+?     ```
+?     all content is indented
+?     blocks as well
+?     ```
+
+
+== Listings ==
+? ```
+? literally
+? with _no_ markup inside
+? ```
+
+Highlight lines...
+? ```
+?   literally
+? ! with _no_ markup inside
+? ```
 
 == Tables ==
 |[ caption ]|
@@ -152,36 +232,6 @@ Using minipages to position a cite footer.
 |----|[#1B5E20]
 | 900 |
 | #1B5E20 |
-
-== Images == 
-
-
-== Lists ==
-? 2. one
-? 2. two
-? 4. three
-
-? #. one
-? #. two
-
-? c. cesar
-? d. delta
-? #. eta
-
-? * one
-? * other
-
-== Listings ==
-? ```
-? literally
-? with _no_ markup inside
-? ```
-
-Highlight lines...
-? ```
-?   literally
-? ! with _no_ markup inside
-? ```
 
 == Minipages ==
 ? :::[<>][#F44336]
