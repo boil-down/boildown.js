@@ -12,9 +12,9 @@ var Boildown = (function() {
 		["<kbd>$1</kbd>",   /@@(..*?)@@/g ],
 		["<del>$1</del>",   /--(..*?)--/g ],
 		["<ins>$1</ins>",   /\+\+(..*?)\+\+/g ],
-		["<q>$2</q>$3",     /([']{2,})(.*?[^'])\1($|[^'])/g, 5],
-		["<sub>$2</sub>$3", /([_]{2,})(.*?[^_])\1($|[^_])/g, 5],
-		["<sup>$2</sup>$3", /([\^]{2,})(.*?[^\^])\1($|[^\^])/g, 5 ],
+		["<q>$2</q>$3",     /([']{1,})(.*?[^'])\1($|[^'])/g, 5],
+		["<sub>$2</sub>$3", /([_]{1,})(.*?[^_])\1($|[^_])/g, 5],
+		["<sup>$2</sup>$3", /([\^]{1,})(.*?[^\^])\1($|[^\^])/g, 5 ],
 		["<code>$1</code>", /`(..*?)`/g ],
 		["<b>$1</b>",       /\*(..*?)\*/g ],
 		["<em>$1</em>",     /_(..*?)_/g ],
@@ -27,15 +27,15 @@ var Boildown = (function() {
 	];
 
 	const BLOCKS    = [
+		[ b3("ins"),        /^\+\+\+/ ],
+		[ b3("del"),        /^---(?:$|[^-])/ ],
+		[ b3("blockquote"), /^>>>/ ],
+		[ b2("blockquote"), /^> / ],
 		[ bMinipage,  /^(:{3,9})(?:\{([a-z0-9]{1,20})\})?/ ],
-		[ bInserted,  /^\+\+\+/ ],
-		[ bDeleted,   /^---(?:$|[^-])/ ],
 		[ bListing,   /^```/ ],
-		[ bQuote,     /^>>>/ ],
 		[ bLine,      /^----/ ],
 		[ bDescribe,  /^= / ],
 		[ bExample,   /^\? / ],
-		[ bNQuote,    /^> / ],
 		[ bList,      /^\* / ],
 		[ bList,      /^(#|[0-9]{1,2}|[a-zA-Z])\. / ],
 		[ bHeading,   /^={3,}(.+?)={3,}(?:\{([a-z0-9]+)\})?(\[.*\])?[ \t]*$/ ],
@@ -79,12 +79,9 @@ var Boildown = (function() {
 		this.styles   = styles;
 		this.scan     = scan;
 		this.unindent = unindent;
+		this.line     = function (n) { return this.lines[n]; }
+		this.add      = function (html) { this.html+=html; }
 	}
-
-	var _ = Doc.prototype; 
-	_.line       = function (n) { return this.lines[n]; }
-	_.matches    = function (n, regex) { return regex.test(this.lines[n]); }
-	_.add        = function (elem) { this.html+=elem; }
 
 	return {
 		toHTML: processMarkup
@@ -161,36 +158,26 @@ var Boildown = (function() {
 		return start+1;
 	}
 
-	function bNQuote(doc, start, end, level, pattern) {
-		var i = doc.unindent(2, start, end, pattern);
-		doc.add("<blockquote>\n"); 
-		doc.process(start, i, level+1);
-		doc.add("</blockquote>\n");
-		return i;
+	function b2(tag) {
+		function block(doc, start, end, level, pattern) {
+			var i = doc.unindent(2, start, end, pattern);
+			doc.add("<"+tag+">\n"); 
+			doc.process(start, i, level+1);
+			doc.add("</"+tag+">\n");
+			return i;
+		}
+		return block;
 	}
 
-	function bQuote(doc, start, end, level, pattern) {
-		var i = doc.scan(start+1, end, pattern);
-		doc.add("<blockquote "+doc.styles(doc.line(start))+">\n"); 
-		doc.process(start+1, i, level+1);
-		doc.add("</blockquote>\n");
-		return i+1;
-	}
-
-	function bDeleted(doc, start, end, level, pattern) {
-		var i = doc.scan(start+1, end, pattern);
-		doc.add("<del "+doc.styles(doc.line(start))+">\n"); 
-		doc.process(start+1, i, level);
-		doc.add("</del>\n");		
-		return i+1;
-	}
-
-	function bInserted(doc, start, end, level, pattern) {
-		var i = doc.scan(start+1, end, pattern);
-		doc.add("<ins "+doc.styles(doc.line(start))+">\n"); 
-		doc.process(start+1, i, level);
-		doc.add("</ins>\n");		
-		return i+1;
+	function b3(tag) {
+		function block(doc, start, end, level, pattern) {
+			var i = doc.scan(start+1, end, pattern);
+			doc.add("<"+tag+" "+doc.styles(doc.line(start))+">\n"); 
+			doc.process(start+1, i, level+1);
+			doc.add("</"+tag+">\n");
+			return i+1;
+		}
+		return block;
 	}
 
 	function bDescribe(doc, start, end, level, pattern) {
@@ -287,20 +274,20 @@ var Boildown = (function() {
 		while (i < end && pattern.test(doc.line(i))) { 
 			var line = doc.line(i);
 			if (i == start) { doc.add("<table "+doc.styles(line.startsWith("|[") ? line : "", "user")+">"); }
-			if (doc.matches(i, /\|\[ /)) {
+			if (/\|\[ /.test(line)) {
 				var side = i === start ? "top" : "bottom";
 				var caption = line.substring(line.indexOf(" "), line.indexOf("]|"));
 				if (!isBlank(caption)) {
 					doc.add("<caption class='"+side+"'>"+processLine(caption)+"</caption>");
 				}
 			}
-			if (doc.matches(i, /^\|[-=]/)) {
+			if (/^\|[-=]/.test(line)) {
 				if (!firstRow) { doc.add("</tr>"); }
 				firstRow = false;
 				var classes = line.indexOf('=') < 0 ? "" : "tborder";
 				//TODO end table with border doesn't work as the tr is empty
 				doc.add("<tr "+doc.styles(doc.line(i), classes)+">");
-			} else if (doc.matches(i, /\|+!? /)) {
+			} else if (/\|+!? /.test(line)) {
 				//TODO col and rowspan (needed as there is no fallback language!)
 				if (firstRow) { doc.add("<tr>"); }
 				firstRow = false;
