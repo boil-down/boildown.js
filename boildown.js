@@ -3,27 +3,32 @@ var Boildown = (function() {
 	'use strict';
 
 	const INLINE = [
-		["<br/>",           / \\\\(?: |$)/ ],
-		["$1&mdash;$2",     /(^| )--($| )/g ],
+		["<br/>",           / \\\\(?: |$)/g ],
+		["$1<wbr>$2",       /([a-zA-Z])\\-([a-zA-Z])/g ],
+		["$1&mdash;$2",     /(^| )---($| )/g ],
+		["$1&ndash;$2",     /(^| )--($| )/g ],
 		["&hellip;",        /\.\.\./g ], 
 		["&$1;",            /&amp;([a-zA-Z]{2,10});/g ], // unescape HTML entities
-		["<tt>$1</tt>",     /``(..*?)``/g ],
-		["<s>$1</s>",       /~~(..*?)~~/g ],
-		["<kbd>$1</kbd>",   /@@(..*?)@@/g ],
+		["<q>$2</q>$3",     /([']{1,})(.*?[^'])\1($|[^'])/g, 5],
+		["<sub>$2</sub>$3", /([~]{1,})(.*?[^~])\1($|[^~])/g, 5],
+		["<sup>$2</sup>$3", /([\^]{1,})(.*?[^\^])\1($|[^\^])/g, 5 ],
+		["<s>$1</s>",       /\/\/(..*?)\/\//g ],
+		["<kbd>$1</kbd>",   /``(..*?)``/g ],
 		["<del>$1</del>",   /--(..*?)--/g ],
 		["<ins>$1</ins>",   /\+\+(..*?)\+\+/g ],
-		["<q>$2</q>$3",     /([']{1,})(.*?[^'])\1($|[^'])/g, 5],
-		["<sub>$2</sub>$3", /([_]{1,})(.*?[^_])\1($|[^_])/g, 5],
-		["<sup>$2</sup>$3", /([\^]{1,})(.*?[^\^])\1($|[^\^])/g, 5 ],
+		["<u>$1</u>",       /__(..*?)__/g ],
+		["<span style='font-variant:small-caps;'>$1</span>", /==(..*?)==/g ],
 		["<code>$1</code>", /`(..*?)`/g ],
 		["<b>$1</b>",       /\*(..*?)\*/g ],
 		["<em>$1</em>",     /_(..*?)_/g ],
+		["<tt>$1</tt>",     /@(..*?)@/g ],
 		["<span style='color: $1$2;'>$3</span>", /#(?:#([a-z]{1,10})|(#[0-9A-Fa-f]{6}))#(..*?)##/g ],
 		["<a href=\"$1\">$2</a>", /\[\[((?:https?:\/\/)?(?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20}) (.+?)\]\]/g ],
 		["$1<a href=\"$2$3\">$3</a>", /(^|[^=">])(https?:\/\/|www\.)((?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20})/g ],
 		["<a href=\"#sec-$1\">$1</a>", /\[\[(\d+(?:\.\d+)*)\]\]/g ],
 		["<sup><a href='#fnote$1'>$1</a></sup>", /\^\[(\d+)\]/g ],
 		//TODO samp/var/abbr/dfn
+		// small caps
 	];
 
 	const BLOCKS    = [
@@ -151,10 +156,10 @@ var Boildown = (function() {
 		if (start > 0 && pattern.test(doc.line(start-1))) { n++; }
 		doc.levels[n]++;
 		var textIdStyle = pattern.exec(doc.line(start));
-		if (textIdStyle[2]) {
-			doc.add("<a id=\""+textIdStyle[2]+"\"></a>");
-		}
-		doc.add("<h"+n+" "+doc.styles(textIdStyle[3])+">"+processLine(textIdStyle[1])+"</h"+n+">\t");
+		var id = textIdStyle[2] ? textIdStyle[2] : textIdStyle[1].replace(/[^a-zA-Z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+		doc.add("\n<a id=\""+id+"\"></a>");
+		doc.add("<a id=\"sec-"+doc.levels[n]+"\"></a>"); //TODO join numbers up to n with .
+		doc.add("\n<h"+n+" "+doc.styles(textIdStyle[3])+">"+processLine(textIdStyle[1])+"</h"+n+">\t");
 		return start+1;
 	}
 

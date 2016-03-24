@@ -20,28 +20,36 @@ Basics, 1 character marks:
 
 ? `code`, ```
 
+? @monospace@
+
 Advanced, 2 character marks:
-? ``typewriter``
+? ==small caps==
 
-? @@keyboard@@, @@@@@
+? __underline__
 
-? ~~strikethrough~~
+? //strikethrough//
 
 ? --deleted-- 
 
 ? ++inserted++ 
 
+? ``key``, `````
+
 ? ##blue#colour##
 ? ##FF0000#colour##
 
 Nestable, 1 or more character marks:
-? ^superscript^
+? x^superscript^
 ? ^a^^b^^ ^
 ? ^^b^a^ ^^
 
-? _subscript_
-? _a__b__ _
-? __b_a_ __
+? x~subscript~
+? ~a~~b~~ ~
+? ~~b~a~~ ~
+
+? a 'quote',
+? a '' 'quote' within a quote'',
+? a ' ''quote'' within a quote'
 
 Escaping inline markup using `{{{{}}`...`{{}}}}`:
 ? {{*plain* _text_}}
@@ -52,6 +60,7 @@ New paragraphs start after blank lines or within a new block.
 Manual line breaks are forced using `\\`:
 ? manual line \\ break
 
+? along\-word\-that\-might\-break\-somewhere
 
 === Links ===
 Links are given in pairs of `[[_URL_ _label_]]`:
@@ -94,11 +103,10 @@ Headings nested with minipages:
 ? ::::
 ? :::
 
-=== Quoting ===
-Inline quoting:
-? a 'quote', a '' 'quote' within a quote''
-? likewise, a ' ''quote'' within a quote'
+To use small caps in headings just use spaces to separate:
+? === ==Small Caps== ===
 
+=== Quoting ===
 Simple block quotes start with `> ` (space!): 
 ? > a quote using
 ? > multiple lines
@@ -122,7 +130,7 @@ Using minipages to position a cite footer.
 ? > how little we know 
 ? > about the nature of reality.
 ? > :::{footer}[>]
-? > -- Russell Ackoff, _Speech on Systems_
+? > --- Russell Ackoff, _Speech on Systems_
 ? > :::
 
 === Images ===
