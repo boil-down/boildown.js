@@ -12,6 +12,7 @@
 === Hello, World! ===
 === a brief but complete boildown user manual ===
 
+
 === Text Formatting ===
 Basics, 1 character marks:
 ? *bold*
@@ -62,6 +63,18 @@ Manual line breaks are forced using `\\`:
 
 ? along\-word\-that\-might\-break\-somewhere
 
+
+=== Special Characters ===
+? ...
+
+? x --- y
+
+? x -- y
+
+HTML-entities can be used by name:
+? &amp;loz;
+
+
 === Links ===
 Links are given in pairs of `[[_URL_ _label_]]`:
 ? [[/relative/url label]]
@@ -77,8 +90,8 @@ Link creation can be escaped as usual:
 
 ? {{http://dilbert.com/}}
 
-=== Editing ===
 
+=== Editing ===
 ? ---
 ? deleted content
 ? ---
@@ -88,14 +101,14 @@ Link creation can be escaped as usual:
 ? +++
 
 === Headings ===
-Use at least two `=` on each side of a heading:
+Use three or more `=` on each side of a heading:
 ? === Default Level ===
 
 When two headings directly follow each other the second is considered a subtitle:
 ? === Main ===
 ? === Sub ===
 
-Headings nested with minipages:
+Headings nest within minipages:
 ? :::
 ? === Nested one level ===
 ? ::::
@@ -103,8 +116,12 @@ Headings nested with minipages:
 ? ::::
 ? :::
 
+To specify the name of a headings anchor use `{_..._}`:
+? === Heading ==={anchorname}
+
 To use small caps in headings just use spaces to separate:
 ? === ==Small Caps== ===
+
 
 === Quoting ===
 Simple block quotes start with `> ` (space!): 
@@ -113,7 +130,7 @@ Simple block quotes start with `> ` (space!):
 
 ? > > double quoting...
 
-Advanced block quotes `>>>` can be used with options to preserve the sources wrapping:
+Advanced block quotes `>>>` can be used with options, e.g. to preserve line wrapping:
 ? >>>[\\]
 ? a quote using
 ? multiple lines
@@ -122,19 +139,23 @@ Advanced block quotes `>>>` can be used with options to preserve the sources wra
 ? >>>
 
 Using minipages to position a cite footer.
-? > [...] we fell that [...] kids would be lucky, 
-? > if they are as well educated as we are, 
+? > [...] we fell that [...] 
+? > kids would be lucky, 
+? > if they are as well educated 
+? > as we are, 
 ? > which is a terrible crime, 
 ? > because we ain't educated at all. 
 ? > We're only beginning to realize 
 ? > how little we know 
 ? > about the nature of reality.
 ? > :::{footer}[>]
-? > --- Russell Ackoff, _Speech on Systems_
+? >  --- Russell Ackoff, 
+? > _Speech on Systems_
 ? > :::
 
+
 === Images ===
-Images are given in format `((_URL_ _title_))`:
+Images are given in format `((_URL_ _[title]_))`:
 ? ((bee.png a bee))
 
 They are blocks with [[#options options]], here to make image float right:
@@ -149,6 +170,7 @@ A gallery or _figure_ is done by a sequence of images, the caption `([`...`])` i
 If the caption isn't stated first, the caption goes below the images:
 ? ((bee.png))
 ? ([ a *bee* ])
+
 
 === Lists ===
 Ordered lists start at the number of the first item given.
@@ -206,14 +228,13 @@ per level.
 
 === Listings ===
 ? ```
-? literally
-? with _no_ markup inside
+? 1 * 2 * 3 = 6
 ? ```
 
 Highlight lines...
-? ```
-?   literally
-? ! with _no_ markup inside
+? ```*
+? ! 1 * 2 * 3 = 6
+? x 1 + 2 + 3 = x6x
 ? ```
 
 === Tables ===
@@ -263,6 +284,7 @@ Highlight lines...
 |----|[#1B5E20]
 | 900 |
 | #1B5E20 |
+
 
 === Minipages ===
 ? :::{aside}[<>][#F44336]

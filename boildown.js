@@ -5,7 +5,7 @@ var Boildown = (function() {
 	const INLINE = [
 		["<br/>",           / \\\\(?: |$)/g ],
 		["$1<wbr>$2",       /([a-zA-Z])\\-([a-zA-Z])/g ],
-		["$1&mdash;$2",     /(^| )---($| )/g ],
+		["$1&mdash;$2",     /(^| )-{3}($| )/g ],
 		["$1&ndash;$2",     /(^| )--($| )/g ],
 		["&hellip;",        /\.\.\./g ], 
 		["&$1;",            /&amp;([a-zA-Z]{2,10});/g ], // unescape HTML entities
@@ -62,6 +62,7 @@ var Boildown = (function() {
 		[ /^\*$/, "font-weight", "bold"],
 		[ /^_$/,  "font-style", "italic"],
 		[ /^~$/,  "text-decoration", "line-through"],
+		[ /^<<>>$/, "text-align", "justified"],
 		[ /^<>$/, "text-align", "center"],
 		[ /^<$/,  "text-align", "left"],
 		[ /^>$/,  "text-align", "right"],
@@ -156,9 +157,9 @@ var Boildown = (function() {
 		if (start > 0 && pattern.test(doc.line(start-1))) { n++; }
 		doc.levels[n]++;
 		var textIdStyle = pattern.exec(doc.line(start));
-		var id = textIdStyle[2] ? textIdStyle[2] : textIdStyle[1].replace(/[^a-zA-Z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+		var id = textIdStyle[2] ? textIdStyle[2] : textIdStyle[1].replace(/[^a-zA-Z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
 		doc.add("\n<a id=\""+id+"\"></a>");
-		doc.add("<a id=\"sec-"+doc.levels[n]+"\"></a>"); //TODO join numbers up to n with .
+		doc.add("<a id=\"sec"+doc.levels.slice(1, n+1).join('.')+"\"></a>");
 		doc.add("\n<h"+n+" "+doc.styles(textIdStyle[3])+">"+processLine(textIdStyle[1])+"</h"+n+">\t");
 		return start+1;
 	}
@@ -220,11 +221,12 @@ var Boildown = (function() {
 	function bListing(doc, start, end, level, pattern) {
 		//TODO highlighting of keywords
 		var i = start;
+		var highlight=doc.line(i).indexOf('*') == 3;
 		var ci = 16;
 		doc.add("<pre"+doc.styles(doc.line(i++))+">\n");
 		while (i < end && !pattern.test(doc.line(i))) { 
 			var line = doc.line(i++);
-			if (line.charAt(0) === '!')  {
+			if (highlight)  {
 				ci=Math.min(ci, line.substring(1).search(/[^ \t]/)+1); 
 			} else {
 				ci=Math.min(ci, line.search(/[^ \t]/)); 
@@ -232,8 +234,13 @@ var Boildown = (function() {
 		}
 		for (var j = start+1; j < i; j++) {
 			var line = doc.line(j);
-			var css = (ci > 0 && line.startsWith("!") ? "class='highlight'" : "");
-			doc.add("<span "+css+">"+escapeHTML(line.substring(ci))+"</span>\n");
+			var css = (highlight && ci > 0 && line.startsWith("!") ? "class='highlight'" : "");
+			var dline = escapeHTML(line.substring(ci));
+			if (highlight && " \t!".indexOf(line.charAt(0)) < 0) {
+				var p = line.charAt(0)+"(..*?)"+line.charAt(0);
+				dline = dline.replace(new RegExp(p, "g"), "<em>$1</em>");
+			}
+			doc.add("<span "+css+">"+dline+"\n</span>");
 		}
 		doc.add("</pre>\n");
 		return i+1;
