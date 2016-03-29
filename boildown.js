@@ -3,26 +3,32 @@ var Boildown = (function() {
 	'use strict';
 
 	const INLINE = [
-		["<br/>",           / \\\\(?: |$)/g ],
-		["$1<wbr>$2",       /([a-zA-Z])\\-([a-zA-Z])/g ],
-		["$1&mdash;$2",     /(^| )-{3}($| )/g ],
-		["$1&ndash;$2",     /(^| )--($| )/g ],
-		["&hellip;",        /\.\.\./g ], 
-		["&$1;",            /&amp;([a-zA-Z]{2,10});/g ], // unescape HTML entities
-		["<q>$2</q>$3",     /([']{1,})(.*?[^'])\1($|[^'])/g, 5],
-		["<sub>$2</sub>$3", /([~]{1,})(.*?[^~])\1($|[^~])/g, 5],
-		["<sup>$2</sup>$3", /([\^]{1,})(.*?[^\^])\1($|[^\^])/g, 5 ],
-		["<s>$1</s>",       /\/\/(..*?)\/\//g ],
-		["<kbd>$1</kbd>",   /``(..*?)``/g ],
-		["<del>$1</del>",   /--(..*?)--/g ],
-		["<ins>$1</ins>",   /\+\+(..*?)\+\+/g ],
-		["<u>$1</u>",       /__(..*?)__/g ],
+		["<br/>",               / \\\\(?: |$)/g ],
+		["$1<wbr>$2",           /([a-zA-Z])\\-([a-zA-Z])/g ],
+		["$1&mdash;$2",         /(^| )-{3}($| )/g ],
+		["$1&ndash;$2",         /(^| )--($| )/g ],
+		["&hellip;",            /\.\.\./g ], 
+		["&$1;",                /&amp;([a-zA-Z]{2,16});/g ], // unescape HTML entities
+		["<q>$2</q>$3",         /([']{1,})(.*?[^'])\1($|[^'])/g, 5],
+		["<sub>$2</sub>$3",     /([~]{1,})(.*?[^~])\1($|[^~])/g, 5],
+		["<sup>$2</sup>$3",     /([\^]{1,})(.*?[^\^])\1($|[^\^])/g, 5 ],
+		["<del>$1</del>",       /--(..*?)--/g ],
+		["<ins>$1</ins>",       /\+\+(..*?)\+\+/g ],
+		["<u class='$2'>$1</u>", /!(..*?)!\{([a-z]+)\}/g ],
+		["<tt>$1</tt>",         /``(..*?)``/g ],
 		["<span style='font-variant:small-caps;'>$1</span>", /==(..*?)==/g ],
-		["<code>$1</code>", /`(..*?)`/g ],
-		["<b>$1</b>",       /\*(..*?)\*/g ],
-		["<em>$1</em>",     /_(..*?)_/g ],
-		["<tt>$1</tt>",     /@(..*?)@/g ],
-		["<span style='color: $1$2;'>$3</span>", /#(?:#([a-z]{1,10})|(#[0-9A-Fa-f]{6}))#(..*?)##/g ],
+		["<span style='text-decoration: underline;'>$1</span>", /__(..*?)__/g ],
+		["<kbd>$1</kbd>",       /@(..*?)@/g ],
+		["<code>$1</code>",     /`(..*?)`/g ],
+		["<samp>$1</samp>",     /\$(..*?)\$/g ],
+		["<abbr>$1</abbr>",     /\.([A-Z]{2,6})\./g ],
+		["<cite>$1</cite>",     /"(..*?)"/g ],
+		["<strong>$1</strong>", /\*(..*?)\*/g ],
+		["<em>$1</em>",         /_(..*?)_/g ],
+		[" <i>$1</i> ",         / \/([^\/ \t].*?[^\/ \t])\/ /g ],
+		[" <s>$1</s> ",         / -([^- \t].*?[^- \t])- /g ],
+		[" <def>$1</def> ",     / :([^: \t].*?[^: \t]): /g ],		
+		["<span style='color: $2$3;'>$1</span>", /::([^:].*?)::\{(?:([a-z]{1,10})|(#[0-9A-Fa-f]{6}))\}/g ],
 		["<a href=\"$1\">$2</a>", /\[\[((?:https?:\/\/)?(?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20}) (.+?)\]\]/g ],
 		["$1<a href=\"$2$3\">$3</a>", /(^|[^=">])(https?:\/\/|www\.)((?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20})/g ],
 		["<a href=\"#sec-$1\">$1</a>", /\[\[(\d+(?:\.\d+)*)\]\]/g ],
@@ -32,21 +38,22 @@ var Boildown = (function() {
 	];
 
 	const BLOCKS    = [
-		[ b3("ins"),        /^\+\+\+/ ],
+		[ ThematicBreak,    /^[-+]{4,}\s*$/ ],
+		[ ThematicBreak,    /^(?:\s+\*+){3,}\s*$/ ],
+		[ b3("ins"),        /^\+\+\+(?:$|[^\+])/ ],
 		[ b3("del"),        /^---(?:$|[^-])/ ],
 		[ b3("blockquote"), /^>>>/ ],
 		[ b2("blockquote"), /^> / ],
-		[ bMinipage,  /^(:{3,9})(?:\{([a-z0-9]{1,20})\})?/ ],
-		[ bListing,   /^```/ ],
-		[ bLine,      /^----/ ],
-		[ bDescribe,  /^= / ],
-		[ bExample,   /^\? / ],
-		[ bList,      /^\* / ],
-		[ bList,      /^(#|[0-9]{1,2}|[a-zA-Z])\. / ],
-		[ bHeading,   /^={3,}(.+?)={3,}(?:\{([a-z0-9]+)\})?(\[.*\])?[ \t]*$/ ],
-		[ bTable,     /^\|+(!?.+?|-+)\|(?:\[.*\])?$/ ],
-		[ bImage,     /^(?:\(\(((?:(?:https?:\/\/)?(?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20}))( [-+a-zA-Z0-9 ,.:]+)?\)\)|\(\[..*?\]\))(?:\[.*\])?$/ ],
-		[ bParagraph, /^(.|$)/ ]
+		[ Minipage,         /^(\*{3,9})(?:\{([a-z0-9]{1,20})\})?/ ],
+		[ Listing,          /^```\*?(?:\{(\w+(?: \w+)*)\})?/ ],
+		[ Output,           /^= / ],
+		[ Sample,           /^\? / ],
+		[ List,             /^[-\*] / ],
+		[ List,             /^(#|[0-9]{1,2}|[a-zA-Z])\. / ],
+		[ Heading,          /^={3,}(.+?)={3,}(?:\{([a-z0-9]+)\})?(\[.*\])?[ \t]*$/ ],
+		[ Table,            /^\|+(!?.+?|-+)\|(?:\[.*\])?$/ ],
+		[ Figure,           /^(?:\(\(((?:(?:https?:\/\/)?(?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20}))( [-+a-zA-Z0-9 ,.:]+)?\)\)|\(\[..*?\]\))(?:\[.*\])?$/ ],
+		[ Paragraph,        /^(.|$)/ ]
 	];
 
 	const STYLES = [
@@ -131,12 +138,12 @@ var Boildown = (function() {
 
 	// BLOCK functions return the line index after the block
 
-	function bLine(doc, start, end, level) {
+	function ThematicBreak(doc, start, end, level) {
 		doc.add("<hr "+doc.styles(doc.line(start))+" />\n");
 		return start+1;
 	}
 
-	function bParagraph(doc, start, end, level) {
+	function Paragraph(doc, start, end, level) {
 		var line = doc.line(start);
 		if (isBlank(line)) {
 			doc.add("\n");
@@ -152,7 +159,7 @@ var Boildown = (function() {
 		return start+1;
 	}
 
-	function bHeading(doc, start, end, n, pattern) {
+	function Heading(doc, start, end, n, pattern) {
 		if (n == 2 && doc.levels[1] === 0) { n = 1; }
 		if (start > 0 && pattern.test(doc.line(start-1))) { n++; }
 		doc.levels[n]++;
@@ -186,9 +193,9 @@ var Boildown = (function() {
 		return block;
 	}
 
-	function bDescribe(doc, start, end, level, pattern) {
+	function Output(doc, start, end, level, pattern) {
 		var i = doc.unindent(2, start, end, pattern);
-		doc.add("<table class='describe'><tr><td><pre class='source'>");
+		doc.add("<table class='describe'><tr><td><pre class='source'><code>");
 		var l0 = doc.html.length;
 		// following line must be done before processing the lines!
 		var example = escapeHTML(doc.lines.slice(start, i).join("\n"));
@@ -196,31 +203,34 @@ var Boildown = (function() {
 		var content = escapeHTML(doc.html.substring(l0));
 		doc.html=doc.html.substring(0, l0);
 		doc.add(example);
-		doc.add("</pre></td><td>\n<pre class='source'>"); 
+		doc.add("</code></pre></td><td>\n<pre class='output'><samp>"); 
 		doc.add(content);
-		doc.add("</pre>\n</td></tr></table>");
+		doc.add("</samp></pre>\n</td></tr></table>");
 		return i;
 	}
 
-	function bExample(doc, start, end, level, pattern) {
+	function Sample(doc, start, end, level, pattern) {
 		var i = doc.unindent(2, start, end, pattern);
-		doc.add("<table class='example'><tr><td><pre class='source'>");
+		doc.add("<table class='example'><tr><td><pre class='source'><code>");
 		var l0 = doc.html.length;
 		// following line must be done before processing the lines!
 		var example = escapeHTML(doc.lines.slice(start, i).join("\n"));
+		example = example.replace(/ /g, "<span>&blank;</span>");
 		doc.process(start, i, level);
 		var content = doc.html.substring(l0);
 		doc.html=doc.html.substring(0, l0);
 		doc.add(example);
-		doc.add("</pre></td><td>\n"); 
+		doc.add("</code></pre></td><td>\n"); 
 		doc.add(content);
 		doc.add("</td></tr></table>");
 		return i;
 	}
 
-	function bListing(doc, start, end, level, pattern) {
+	function Listing(doc, start, end, level, pattern) {
 		//TODO highlighting of keywords
 		var i = start;
+		var keywords = pattern.exec(doc.line(i))[1]
+		if (keywords) { keywords = keywords.split(" "); }
 		var highlight=doc.line(i).indexOf('*') == 3;
 		var ci = 16;
 		doc.add("<pre"+doc.styles(doc.line(i++))+">\n");
@@ -234,19 +244,27 @@ var Boildown = (function() {
 		}
 		for (var j = start+1; j < i; j++) {
 			var line = doc.line(j);
-			var css = (highlight && ci > 0 && line.startsWith("!") ? "class='highlight'" : "");
 			var dline = escapeHTML(line.substring(ci));
-			if (highlight && " \t!".indexOf(line.charAt(0)) < 0) {
-				var p = line.charAt(0)+"(..*?)"+line.charAt(0);
-				dline = dline.replace(new RegExp(p, "g"), "<em>$1</em>");
+			if (highlight) {
+				if (" \t!".indexOf(line.charAt(0)) < 0) {
+					var p = line.charAt(0)+"(..*?)"+line.charAt(0);
+					dline = dline.replace(new RegExp(p, "g"), "<mark>$1</mark>");
+				} else if (line.startsWith("!")) {
+					dline = "<mark>"+dline+"</mark>";
+				}
 			}
-			doc.add("<span "+css+">"+dline+"\n</span>");
+			if (keywords) {
+				for (var k = 0; k < keywords.length; k++) {
+					dline = dline.replace(new RegExp("\\b("+keywords[k]+")\\b", "g"), "<b>$1</b>");
+				}
+			}
+			doc.add("<span>"+dline+"\n</span>");
 		}
 		doc.add("</pre>\n");
 		return i+1;
 	}
 
-	function bImage(doc, start, end, level, pattern) {
+	function Figure(doc, start, end, level, pattern) {
 		var i = start;
 		var images = [];
 		var caption = "";
@@ -279,7 +297,7 @@ var Boildown = (function() {
 		return i;
 	}
 
-	function bTable(doc, start, end, level, pattern) {
+	function Table(doc, start, end, level, pattern) {
 		var i = start;
 		doc.add("<table class='user'>");
 		var firstRow = true;
@@ -318,7 +336,7 @@ var Boildown = (function() {
 		return i;
 	}
 
-	function bList(doc, start, end, level, pattern) {
+	function List(doc, start, end, level, pattern) {
 		var i = start;		
 		var bullet = pattern.test("* ");
 		var c = doc.line(i).charAt(0);
@@ -339,10 +357,10 @@ var Boildown = (function() {
 	function itemStart (c) { return c === '#' ? 1 : c.charCodeAt() - itemType(c).charCodeAt() + 1; } 
 	function itemType  (c) { return /\d|#/.test(c) ? '1' : /i/i.test(c) ? c : /[A-Z]/.test(c) ? 'A' : 'a'; }
 
-	function bMinipage(doc, start, end, level, pattern) {
+	function Minipage(doc, start, end, level, pattern) {
 		var line = doc.line(start);
 		var page = pattern.exec(line);
-		var i = doc.scan(start+1, end, new RegExp("^"+page[1]+"($|[^:])"));
+		var i = doc.scan(start+1, end, new RegExp("^"+page[1].replace(/\*/g, "\\*")+"($|[^\*])"));
 		var tagged = page.length > 2 && page[2];
 		var retag = tagged && TAGS.indexOf(page[2]) >= 0;
 		var tag = retag? page[2] : "div";
