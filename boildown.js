@@ -2,13 +2,32 @@
 var Boildown = (function() {
 	'use strict';
 
+	const BLOCKS    = [
+		[ Separator,        /^(?:(?:\s+[-+*]+){3,}|\s+[-+*]{3,})\s*(?:\[[^\]]+\])*$/ ],
+		[ b3("ins"),        /^\+{3,}/ ],
+		[ b3("del"),        /^-{3,}/ ],
+		[ b3("blockquote"), /^>{3,}/ ],
+		[ b2("blockquote"), /^> / ],
+		[ Minipage,         /^(\*{3,})(?:\{(\w+)\})?/ ],
+		[ Listing,          /^`{3,}\*?(?:\{(\w+(?: \w+)*)\})?/ ],
+		[ Listing,          /^~{3,}\*?(?:\{(\w+(?: \w+)*)\})?/ ],
+		[ Output,           /^= / ],
+		[ Sample,           /^\? / ],
+		[ List,             /^\* / ],
+		[ List,             /^(#|[0-9]{1,2}|[a-zA-Z])\. / ],
+		[ Heading,          /^={3,}(.+?)(?:={3,})(?:\{(\w+)\})?(\[.*\])?[ \t]*$/ ],
+		[ Table,            /^\|+(!?.+?|-+)\|(?:\[.*\])?$/ ],
+		[ Figure,           /^(?:\(\(((?:(?:https?:\/\/)?(?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20}))( [-+a-zA-Z0-9 ,.:]+)?\)\)|\(\[..*?\]\))(?:\[.*\])?$/ ],
+		[ Paragraph,        /^(.|$)/ ]
+	];
+
 	const INLINE = [
 		["<br/>",               / \\\\(?: |$)/g ],
-		["$1<wbr>$2",           /([a-zA-Z])\\-([a-zA-Z])/g ],
+		["$1<wbr>$2",           /(\w)\\-(\w)/g ],
 		["$1&mdash;$2",         /(^| )-{3}($| )/g ],
 		["$1&ndash;$2",         /(^| )--($| )/g ],
 		["&hellip;",            /\.\.\./g ], 
-		["&$1;",                /&amp;([a-zA-Z]{2,16});/g ], // unescape HTML entities
+		["&$1;",                /&amp;(\w{2,16});/g ], // unescape HTML entities
 		["<q>$2</q>$3",         /([']{1,})(.*?[^'])\1($|[^'])/g, 5],
 		["<sub>$2</sub>$3",     /([~]{1,})(.*?[^~])\1($|[^~])/g, 5],
 		["<sup>$2</sup>$3",     /([\^]{1,})(.*?[^\^])\1($|[^\^])/g, 5 ],
@@ -28,32 +47,11 @@ var Boildown = (function() {
 		[" <i>$1</i> ",         / \/([^\/ \t].*?[^\/ \t])\/ /g ],
 		[" <s>$1</s> ",         / -([^- \t].*?[^- \t])- /g ],
 		[" <def>$1</def> ",     / :([^: \t].*?[^: \t]): /g ],		
-		["<span style='color: $2$3;'>$1</span>", /::([^:].*?)::\{(?:([a-z]{1,10})|(#[0-9A-Fa-f]{6}))\}/g ],
+		["<span style='color: $2$3;'>$1</span>", /::([^:].*?)::\{(?:(\w{1,10})|(#[0-9A-Fa-f]{6}))\}/g ],
 		["<a href=\"$1\">$2</a>", /\[\[((?:https?:\/\/)?(?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20}) (.+?)\]\]/g ],
 		["$1<a href=\"$2$3\">$3</a>", /(^|[^=">])(https?:\/\/|www\.)((?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20})/g ],
 		["<a href=\"#sec-$1\">$1</a>", /\[\[(\d+(?:\.\d+)*)\]\]/g ],
 		["<sup><a href='#fnote$1'>$1</a></sup>", /\^\[(\d+)\]/g ],
-		//TODO samp/var/abbr/dfn
-		// small caps
-	];
-
-	const BLOCKS    = [
-		[ ThematicBreak,    /^[-+]{4,}\s*$/ ],
-		[ ThematicBreak,    /^(?:\s+\*+){3,}\s*$/ ],
-		[ b3("ins"),        /^\+\+\+(?:$|[^\+])/ ],
-		[ b3("del"),        /^---(?:$|[^-])/ ],
-		[ b3("blockquote"), /^>>>/ ],
-		[ b2("blockquote"), /^> / ],
-		[ Minipage,         /^(\*{3,9})(?:\{([a-z0-9]{1,20})\})?/ ],
-		[ Listing,          /^```\*?(?:\{(\w+(?: \w+)*)\})?/ ],
-		[ Output,           /^= / ],
-		[ Sample,           /^\? / ],
-		[ List,             /^[-\*] / ],
-		[ List,             /^(#|[0-9]{1,2}|[a-zA-Z])\. / ],
-		[ Heading,          /^={3,}(.+?)={3,}(?:\{([a-z0-9]+)\})?(\[.*\])?[ \t]*$/ ],
-		[ Table,            /^\|+(!?.+?|-+)\|(?:\[.*\])?$/ ],
-		[ Figure,           /^(?:\(\(((?:(?:https?:\/\/)?(?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20}))( [-+a-zA-Z0-9 ,.:]+)?\)\)|\(\[..*?\]\))(?:\[.*\])?$/ ],
-		[ Paragraph,        /^(.|$)/ ]
 	];
 
 	const STYLES = [
@@ -92,6 +90,7 @@ var Boildown = (function() {
 		this.styles   = styles;
 		this.scan     = scan;
 		this.unindent = unindent;
+		this.minIndent= minIndent;
 		this.line     = function (n) { return this.lines[n]; }
 		this.add      = function (html) { this.html+=html; }
 	}
@@ -136,9 +135,17 @@ var Boildown = (function() {
 		return i;
 	}
 
+	function minIndent(start, end, offset) {
+		var res = 16;
+		for (var i = start; i < end; i++) {
+			res=Math.min(res, this.lines[i].substring(offset).search(/[^ \t]/)+offset); 
+		}
+		return res;
+	}
+
 	// BLOCK functions return the line index after the block
 
-	function ThematicBreak(doc, start, end, level) {
+	function Separator(doc, start, end, level) {
 		doc.add("<hr "+doc.styles(doc.line(start))+" />\n");
 		return start+1;
 	}
@@ -164,11 +171,15 @@ var Boildown = (function() {
 		if (start > 0 && pattern.test(doc.line(start-1))) { n++; }
 		doc.levels[n]++;
 		var textIdStyle = pattern.exec(doc.line(start));
-		var id = textIdStyle[2] ? textIdStyle[2] : textIdStyle[1].replace(/[^a-zA-Z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+		var id = textIdStyle[2] ? textIdStyle[2] : text2id(textIdStyle[1]);
 		doc.add("\n<a id=\""+id+"\"></a>");
 		doc.add("<a id=\"sec"+doc.levels.slice(1, n+1).join('.')+"\"></a>");
 		doc.add("\n<h"+n+" "+doc.styles(textIdStyle[3])+">"+processLine(textIdStyle[1])+"</h"+n+">\t");
 		return start+1;
+	}
+
+	function text2id(text) {
+		return text.replace(/[^a-zA-Z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
 	}
 
 	function b2(tag) {
@@ -227,24 +238,17 @@ var Boildown = (function() {
 	}
 
 	function Listing(doc, start, end, level, pattern) {
-		//TODO highlighting of keywords
-		var i = start;
-		var keywords = pattern.exec(doc.line(i))[1]
+		var mark = doc.line(start);
+		var keywords = pattern.exec(mark)[1]
 		if (keywords) { keywords = keywords.split(" "); }
-		var highlight=doc.line(i).indexOf('*') == 3;
-		var ci = 16;
-		doc.add("<pre"+doc.styles(doc.line(i++))+">\n");
-		while (i < end && !pattern.test(doc.line(i))) { 
-			var line = doc.line(i++);
-			if (highlight)  {
-				ci=Math.min(ci, line.substring(1).search(/[^ \t]/)+1); 
-			} else {
-				ci=Math.min(ci, line.search(/[^ \t]/)); 
-			}
-		}
+		var highlight=mark.indexOf('*') == 3;
+		var tag = mark.indexOf('`') === 0 ? "code" : "samp"; 
+		doc.add("<pre"+doc.styles(mark, tag)+"><"+tag+">");
+		var i = doc.scan(start+1, end, pattern);
+		var minIndent = doc.minIndent(start, end, highlight ? 1 : 0);	
 		for (var j = start+1; j < i; j++) {
 			var line = doc.line(j);
-			var dline = escapeHTML(line.substring(ci));
+			var dline = escapeHTML(line.substring(minIndent));
 			if (highlight) {
 				if (" \t!".indexOf(line.charAt(0)) < 0) {
 					var p = line.charAt(0)+"(..*?)"+line.charAt(0);
@@ -260,7 +264,7 @@ var Boildown = (function() {
 			}
 			doc.add("<span>"+dline+"\n</span>");
 		}
-		doc.add("</pre>\n");
+		doc.add("</"+tag+"></pre>\n");
 		return i+1;
 	}
 
@@ -298,6 +302,8 @@ var Boildown = (function() {
 	}
 
 	function Table(doc, start, end, level, pattern) {
+		//TODO use * for headings (not !) 
+		//TODO use a more consistent caption syntax?
 		var i = start;
 		doc.add("<table class='user'>");
 		var firstRow = true;
@@ -339,9 +345,8 @@ var Boildown = (function() {
 	function List(doc, start, end, level, pattern) {
 		var i = start;		
 		var bullet = pattern.test("* ");
-		var c = doc.line(i).charAt(0);
-		doc.add( bullet ? "<ul>\n" : "<ol type='"+itemType(c)+"' start='"+itemStart(c)+"'>\n");
-		var item = true;
+		var no = pattern.exec(doc.line(i))[1];
+		doc.add( bullet ? "<ul>\n" : "<ol type='"+listType(no)+"' start='"+listStart(no)+"'>\n");
 		while (i < end && pattern.test(doc.line(i))) {
 			var i0 = i;
 			doc.lines[i] = doc.lines[i].substring(doc.lines[i].indexOf(' '));
@@ -354,8 +359,8 @@ var Boildown = (function() {
 		return i;
 	}
 
-	function itemStart (c) { return c === '#' ? 1 : c.charCodeAt() - itemType(c).charCodeAt() + 1; } 
-	function itemType  (c) { return /\d|#/.test(c) ? '1' : /i/i.test(c) ? c : /[A-Z]/.test(c) ? 'A' : 'a'; }
+	function listStart (item) { return item === '#' ? 1 : parseInt(item) ? parseInt(item) : item.charCodeAt() - listType(item).charCodeAt() + 1; } 
+	function listType  (item) { var c = item.charAt(0); return /\d|#/.test(c) ? '1' : /i/i.test(c) ? c : /[A-Z]/.test(c) ? 'A' : 'a'; }
 
 	function Minipage(doc, start, end, level, pattern) {
 		var line = doc.line(start);

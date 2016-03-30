@@ -12,6 +12,28 @@
 === User Manual ===
 === for the boildown markup language ===
 
+=== Principles ===
+Depending on your knowledge and understanding of programming, interpreters and
+markup languages the following list of principle might help you a lot in 
+understanding how the markup works. 
+Otherwise just skip and ignore them and learn from the examples below.
+
+* no escape to a less constraint language (like HTML)
+* aims to enable readable ASCII documents
+* _but_: no multiplicity in expressive possibilities (bears complexity)
+* interpretation is line wise (only)
+* semantics are never altered by subsequential lines
+* main loop determines where a block starts
+* blocks determine where they end 
+* blocks determine if and where to apply inline markup
+* inline markup *cannot* span multiple lines
+* not characters but sections of (inline) text are escaped 
+* inline markup is short rather than secured against unwanted matches 
+  (as it can be escaped easily)
+* empty lines only start/end paragraphs (but have no other semantic)
+* block nesting is done by consistent indentation
+* block start marks are left aligned (after potential indent; except separators)
+
 === Text Formatting ===
 Semantic markups use single character marks:
 ? _emphasis_
@@ -172,17 +194,24 @@ Using minipages to position a cite footer.
 ? > ***
 
 
-=== Thematic Breaks ===
-Use 4 or more plus or minus symbols:
+=== Separator Lines ===
+Any line that does start with whitespace and that just contains whitespace and 
+at least 3 minus, plus or asterisks symbols is a separator line.
 
-? ----
+?      --------------
 
-? +++++++
+?  + - + - + - + - +
 
-or at least 3 asterisk symbols separated by at least one space:
+?  - - - - - - - - -
+
 ?    * * *   
 
 ?  **  * ** * ** * **
+
+Separator lines are empty but proper blocks, styles can be used to e.g. make a
+typical footnote line:
+
+?  -------------[40%][<=][#000000]
 
 === Images ===
 Images are given in format `((_URL_ _[title]_))`:
@@ -231,13 +260,10 @@ And even roman numbers work, but here the lists have to start with `I.`
 In case of letters a specified item cannot have multiple letters. 
 Instead the placeholder `#.` should be used.
 
-Asterisk `*` or minus `-` followed by a space are used for bullet lists.
+Asterisk `*` followed by a space are used for bullet lists.
 
 ? * one
 ? * other
-
-? - one
-? - other
 
 Any content can be nested within an item. 
 All content that should be nested has to be indented by 2 spaces and/or tabs
@@ -245,7 +271,7 @@ per level.
 
 ? 1. one
 ?   further text in one
-?   ----
+?         ----
 ?   and further text
 ? 
 ?   also with a new paragraph
@@ -275,6 +301,12 @@ Draw attention to keywords using the option `{_wordlist_}`:
 ? Highlights the key words
 ? word by word
 ? ```
+
+Give samples
+? ~~~
+? A sample 
+? block
+? ~~~
 
 === Tables ===
 |[ caption ]|
@@ -335,6 +367,15 @@ Draw attention to keywords using the option `{_wordlist_}`:
 ? ****
 ? and back in the outer minipage
 ? ***
+
+
+=== Document Setup ===
+As blocks cope with missing end blocks one can start a document with a minipage
+to apply some _global_ options.
+
+? ***[pad3]
+
+
 
 		</textarea>
 		<button onclick="show()">show</button>

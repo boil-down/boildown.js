@@ -14,7 +14,7 @@ del { color: #D50000; }
 ins { color: #1B5E20; text-decoration: none; }
 pre { padding: 5px; margin: 3px 0; line-height: 1.4em; background-color: #e9e9e9; }
 pre code { background-color: inherit; padding: 0; }
-hr { border-width: 0; border-top: 1px solid #ccc; height: 0; }
+hr { border-width: 0; background-color: #ccc; height: 1px; }
 blockquote { font-style: italic; display: table; text-align: left; margin: 0 auto; }
 footer { font-style: normal; }
 caption.top { caption-side: top; }
