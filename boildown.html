@@ -33,6 +33,8 @@ Otherwise just skip and ignore them and learn from the examples below.
 * empty lines only start/end paragraphs (but have no other semantic)
 * block nesting is done by consistent indentation
 * block start marks are left aligned (after potential indent; except separators)
+* start and end marks of inline markups are identical (escaping is an exception)
+* inline marks do not use combinations of different characters
 
 === Text Formatting ===
 Semantic markups use single character marks:
@@ -190,7 +192,7 @@ Using minipages to position a cite footer.
 ? > about the nature of reality.
 ? > ***{footer}[>]
 ? >  --- Russell Ackoff, 
-? > _Speech on Systems_
+? > "Speech on Systems"
 ? > ***
 
 
@@ -220,15 +222,15 @@ Images are given in format `((_URL_ _[title]_))`:
 They are blocks with [[#options options]], here to make image float right:
 ? ((bee.png a bee))[=>]
 
-A gallery or _figure_ is done by a sequence of images, the caption `([`...`])` is optional.
-? ([ bees ])[<>]
+A gallery or _figure_ is done by a sequence of images, the caption `( `...` )` is optional.
+? ( bees          )[<>]
 ? ((bee.png bee 1))
 ? ((bee.png bee 2))
 ? ((bee.png bee 3))
 
 If the caption isn't stated first, the caption goes below the images:
 ? ((bee.png))
-? ([ a *bee* ])
+? ( a *bee* )
 
 
 === Lists ===
@@ -309,52 +311,51 @@ Give samples
 ? ~~~
 
 === Tables ===
-|[ caption ]|
-|----|
-||! hello, !|
-|! *world* !||
-|====|
-| this is |[#ff9900]
-|| a first example ||
-|----|
+:: caption ::
+|...........|
+|  hello    |*{1 2}
+| *world*   |*
+|-----------|
+: this is   :[#ff9900]
+|-----------|
 
-|[]|[20%]['][pad5][=>]
-|----|[#4CAF50]
-|! Green !|
-|! !|
-|----|[#4CAF50]
-| 500 |
-| #4CAF50 |
-|----|[#E8F5E9]
-| 50 |
-| #E8F5E9 |
-|----|[#C8E6C9]
-| 100 |
-| #C8E6C9 |
-|----|[#A5D6A7]
-| 200 |
-| #A5D6A7 |
-|----|[#81C784]
-| 300 |
-| #81C784 |
-|----|[#66BB6A]
-| 400 |
-| #66BB6A |
-|----|[#4CAF50]
-| 500 |
-| #4CAF50 |
-|----|[#43A047]
-| 600 |
-| #43A047 |
-|----|[#388E3C]
-| 700 |
-| #388E3C |
-|----|[#2E7D32]
-| 800 |
-| #2E7D32 |
-|----|[#1B5E20]
-| 900 |
-| #1B5E20 |
+:: ::[20%]['][pad5][=>]
+:.........:[#4CAF50]
+: Green :*{2}
+:.........:[#4CAF50]
+: 500 :
+: #4CAF50 :
+:.........:[#E8F5E9]
+: 50 :
+: #E8F5E9 :
+:.........:[#C8E6C9]
+: 100 :
+: #C8E6C9 :
+:.........:[#A5D6A7]
+: 200 :
+: #A5D6A7 :
+:.........:[#81C784]
+: 300 :
+: #81C784 :
+:.........:[#66BB6A]
+: 400 :
+: #66BB6A :
+:.........:[#4CAF50]
+: 500 :
+: #4CAF50 :
+:.........:[#43A047]
+: 600 :
+: #43A047 :
+:.........:[#388E3C]
+: 700 :
+: #388E3C :
+:.........:[#2E7D32]
+: 800 :
+: #2E7D32 :
+:.........:[#1B5E20]
+: 900 :
+: #1B5E20 :
+:.........:
 
 
 === Minipages ===

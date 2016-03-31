@@ -3,7 +3,7 @@ var Boildown = (function() {
 	'use strict';
 
 	const BLOCKS    = [
-		[ Separator,        /^(?:(?:\s+[-+*]+){3,}|\s+[-+*]{3,})\s*(?:\[[^\]]+\])*$/ ],
+		[ Separator,        /^(?:(?:\s+[-+*]+){3,}|\s+[-+*]{3,})\s*((?:\[[^\]]+\])*)?$/ ],
 		[ b3("ins"),        /^\+{3,}/ ],
 		[ b3("del"),        /^-{3,}/ ],
 		[ b3("blockquote"), /^>{3,}/ ],
@@ -15,9 +15,9 @@ var Boildown = (function() {
 		[ Sample,           /^\? / ],
 		[ List,             /^\* / ],
 		[ List,             /^(#|[0-9]{1,2}|[a-zA-Z])\. / ],
-		[ Heading,          /^={3,}(.+?)(?:={3,})(?:\{(\w+)\})?(\[.*\])?[ \t]*$/ ],
-		[ Table,            /^\|+(!?.+?|-+)\|(?:\[.*\])?$/ ],
-		[ Figure,           /^(?:\(\(((?:(?:https?:\/\/)?(?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20}))( [-+a-zA-Z0-9 ,.:]+)?\)\)|\(\[..*?\]\))(?:\[.*\])?$/ ],
+		[ Heading,          /^={3,}(.+?)(?:={3,})(?:\{(\w+)\})?((?:\[[^\]]+\])*)?$/ ],
+		[ Table,            /^([:\|]):?(.+?):?([:\|])(\*)?(?:\{(\d+).?(\d+)?\})?((?:\[[^\]]+\])*)?$/ ],
+		[ Figure,           /^(?:\(\(((?:(?:https?:\/\/)?(?:[-\w]{0,15}[.:/#+]?){1,20}))( [-+ ,.:\w]+)?\)\)|\( (.+?) \))((?:\[[^\]]+\])*)?$/ ],
 		[ Paragraph,        /^(.|$)/ ]
 	];
 
@@ -48,8 +48,8 @@ var Boildown = (function() {
 		[" <s>$1</s> ",         / -([^- \t].*?[^- \t])- /g ],
 		[" <def>$1</def> ",     / :([^: \t].*?[^: \t]): /g ],		
 		["<span style='color: $2$3;'>$1</span>", /::([^:].*?)::\{(?:(\w{1,10})|(#[0-9A-Fa-f]{6}))\}/g ],
-		["<a href=\"$1\">$2</a>", /\[\[((?:https?:\/\/)?(?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20}) (.+?)\]\]/g ],
-		["$1<a href=\"$2$3\">$3</a>", /(^|[^=">])(https?:\/\/|www\.)((?:[-_a-zA-Z0-9]{0,15}[.:/#+]?){1,20})/g ],
+		["<a href=\"$1\">$2</a>", /\[\[((?:https?:\/\/)?(?:[-\w]{0,15}[.:/#+]?){1,20}) (.+?)\]\]/g ],
+		["$1<a href=\"$2$3\">$3</a>", /(^|[^=">])(https?:\/\/|www\.)((?:[-\w]{0,15}[.:/#+]?){1,20})/g ],
 		["<a href=\"#sec-$1\">$1</a>", /\[\[(\d+(?:\.\d+)*)\]\]/g ],
 		["<sup><a href='#fnote$1'>$1</a></sup>", /\^\[(\d+)\]/g ],
 	];
@@ -276,12 +276,13 @@ var Boildown = (function() {
 		var first = false;
 		while (i < end && pattern.test(doc.line(i))) {
 			var line = doc.line(i);
+			var image = pattern.exec(line);
 			if (line.startsWith("((")) {
-				images.push(pattern.exec(line));
+				images.push(image);
 			} else {
 				first = i === start;
-				caption = "<figcaption>"+processLine(line.substring(2, line.lastIndexOf("])")))+"</figcaption>";
-				style = doc.styles(line.substring(line.lastIndexOf("])")+2));
+				caption = "<figcaption>"+processLine(image[3])+"</figcaption>";
+				style = doc.styles(image[4]);
 			}
 			i++;
 		}
@@ -292,7 +293,7 @@ var Boildown = (function() {
 		for (var j = 0; j < images.length; j++) {
 			var title = images[j][2];
 			title = title ? "title='"+title+"' alt='"+title+"'" : "";
-			doc.add("<img src=\""+images[j][1]+"\" "+doc.styles(images[j][0])+" "+title+" />");
+			doc.add("<img src=\""+images[j][1]+"\" "+doc.styles(images[j][4])+" "+title+" />");
 		}
 		if (caption && !first) { doc.add(caption); }
 		if (images.length > 1 || caption) {
@@ -302,38 +303,33 @@ var Boildown = (function() {
 	}
 
 	function Table(doc, start, end, level, pattern) {
-		//TODO use * for headings (not !) 
-		//TODO use a more consistent caption syntax?
 		var i = start;
-		doc.add("<table class='user'>");
 		var firstRow = true;
-		while (i < end && pattern.test(doc.line(i))) { 
+		while (i < end && pattern.test(doc.line(i))) {
 			var line = doc.line(i);
-			if (i == start) { doc.add("<table "+doc.styles(line.startsWith("|[") ? line : "", "user")+">"); }
-			if (/\|\[ /.test(line)) {
+			var row = pattern.exec(line);
+			var isCaption = line.startsWith("::");
+			if (i == start) { doc.add("<table "+doc.styles(isCaption ? row[7] : "", "user")+">"); }
+			if (isCaption) {
 				var side = i === start ? "top" : "bottom";
-				var caption = line.substring(line.indexOf(" "), line.indexOf("]|"));
+				var caption = row[2];
 				if (!isBlank(caption)) {
 					doc.add("<caption class='"+side+"'>"+processLine(caption)+"</caption>");
 				}
-			}
-			if (/^\|[-=]/.test(line)) {
+			} else if (/^[-\.]+$/.test(row[2])) {
 				if (!firstRow) { doc.add("</tr>"); }
 				firstRow = false;
-				var classes = line.indexOf('=') < 0 ? "" : "tborder";
+				var classes = row[2].charAt(0) === '-' ? "tborder" : "";
 				//TODO end table with border doesn't work as the tr is empty
-				doc.add("<tr "+doc.styles(doc.line(i), classes)+">");
-			} else if (/\|+!? /.test(line)) {
-				//TODO col and rowspan (needed as there is no fallback language!)
+				doc.add("<tr "+doc.styles(row[7], classes)+">");
+			} else {
 				if (firstRow) { doc.add("<tr>"); }
 				firstRow = false;
-				var line = doc.line(i);
-				var tag = line.lastIndexOf("|!", 3) >= 0 ? "th" : "td";
-				var eom = line.lastIndexOf("|");
-				var som = line.lastIndexOf(" ", eom);
-				var classes = (line.indexOf("||") === 0 ? " lborder" : "")+(line.indexOf("||", som) >= som ? " rborder" : "");
-				doc.add("<"+tag+" "+doc.styles(line.substring(eom), classes)+">");
-				doc.add(processLine(line.substring(line.indexOf(" "), som)));
+				var tag = row[4] ? "th" : "td";
+				var classes = (row[1] === '|' ? " lborder" : "")+(row[3] === '|' ? " rborder" : "");
+				var span = (row[5] ? "colspan='"+row[5]+"'" : "")+(row[6] ? "rowspan='"+row[6]+"'" : "");
+				doc.add("<"+tag+" "+span+" "+doc.styles(row[7], classes)+">");
+				doc.add(processLine(row[2]));
 				doc.add("</"+tag+">");
 			}
 			i++;
