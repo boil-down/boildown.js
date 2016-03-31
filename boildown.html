@@ -210,27 +210,9 @@ at least 3 minus, plus or asterisks symbols is a separator line.
 
 ?  **  * ** * ** * **
 
-Separator lines are empty but proper blocks, styles can be used to e.g. make a
-typical footnote line:
+Separator lines are empty but proper blocks, styles can be used:
 
 ?  -------------[40%][<=][#000000]
-
-=== Images ===
-Images are given in format `((_URL_ _[title]_))`:
-? ((bee.png a bee))
-
-They are blocks with [[#options options]], here to make image float right:
-? ((bee.png a bee))[=>]
-
-A gallery or _figure_ is done by a sequence of images, the caption `( `...` )` is optional.
-? ( bees          )[<>]
-? ((bee.png bee 1))
-? ((bee.png bee 2))
-? ((bee.png bee 3))
-
-If the caption isn't stated first, the caption goes below the images:
-? ((bee.png))
-? ( a *bee* )
 
 
 === Lists ===
@@ -309,6 +291,25 @@ Give samples
 ? A sample 
 ? block
 ? ~~~
+
+
+=== Images ===
+Images are given in format `( _URL_ _[title]_ )`:
+? ( bee.png a bee )
+
+They are blocks with [[#options options]], here to make image float right:
+? ( bee.png a bee )[=>]
+
+A gallery or _figure_ is done by a sequence of images, the caption `((`...`))` is optional.
+? (( bees        ))[<>]
+? ( bee.png bee 1 )
+? ( bee.png bee 2 )
+? ( bee.png bee 3 )
+
+If the caption isn't stated first, the caption goes below the images:
+? ( bee.png  )
+? (( a *bee* ))
+
 
 === Tables ===
 :: caption ::

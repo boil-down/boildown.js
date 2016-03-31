@@ -17,7 +17,7 @@ var Boildown = (function() {
 		[ List,             /^(#|[0-9]{1,2}|[a-zA-Z])\. / ],
 		[ Heading,          /^={3,}(.+?)(?:={3,})(?:\{(\w+)\})?((?:\[[^\]]+\])*)?$/ ],
 		[ Table,            /^([:\|]):?(.+?):?([:\|])(\*)?(?:\{(\d+).?(\d+)?\})?((?:\[[^\]]+\])*)?$/ ],
-		[ Figure,           /^(?:\(\(((?:(?:https?:\/\/)?(?:[-\w]{0,15}[.:/#+]?){1,20}))( [-+ ,.:\w]+)?\)\)|\( (.+?) \))((?:\[[^\]]+\])*)?$/ ],
+		[ Figure,           /^(?:\( ((?:(?:https?:\/\/)?(?:[-\w]{0,15}[.:/#+]?){1,20}))\s+([-+ ,.:\w]+)? \)|\(\((.+?)\)\))((?:\[[^\]]+\])*)?$/ ],
 		[ Paragraph,        /^(.|$)/ ]
 	];
 
@@ -277,7 +277,7 @@ var Boildown = (function() {
 		while (i < end && pattern.test(doc.line(i))) {
 			var line = doc.line(i);
 			var image = pattern.exec(line);
-			if (line.startsWith("((")) {
+			if (line.startsWith("( ")) {
 				images.push(image);
 			} else {
 				first = i === start;
