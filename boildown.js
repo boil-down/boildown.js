@@ -11,7 +11,7 @@ var Boildown = (function() {
 		[ Minipage,         /^(\*{3,})(?:\{(\w+)\})?/ ],
 		[ Listing,          /^`{3,}\*?(?:\{(\w+(?: \w+)*)\})?/ ],
 		[ Listing,          /^~{3,}\*?(?:\{(\w+(?: \w+)*)\})?/ ],
-		[ Output,           /^= / ],
+		[ Output,           /^! / ],
 		[ Sample,           /^\? / ],
 		[ List,             /^\* / ],
 		[ List,             /^(#|[0-9]{1,2}|[a-zA-Z])\. / ],
@@ -156,11 +156,11 @@ var Boildown = (function() {
 			doc.add("\n");
 		} else {
 			if (doc.html.endsWith("</p>")) {
-				doc.html = doc.html.substring(0, doc.html.length-4);
+				doc.html = doc.html.substring(0, doc.html.length-4)+"\n";
 			} else {
 				doc.add("\n<p>");
 			}
-			doc.add(processLine(line)+"\n");
+			doc.add(processLine(line));
 			doc.add("</p>");
 		}
 		return start+1;
@@ -210,11 +210,12 @@ var Boildown = (function() {
 		var l0 = doc.html.length;
 		// following line must be done before processing the lines!
 		var example = escapeHTML(doc.lines.slice(start, i).join("\n"));
+		example = example.replace(/ /g, "<span>&blank;</span>");
 		doc.process(start, i, level);
-		var content = escapeHTML(doc.html.substring(l0));
+		var content = escapeHTML(doc.html.substring(l0).trim());
 		doc.html=doc.html.substring(0, l0);
 		doc.add(example);
-		doc.add("</code></pre></td><td>\n<pre class='output'><samp>"); 
+		doc.add("</code></pre></td>\n<td><pre class='output'><samp>"); 
 		doc.add(content);
 		doc.add("</samp></pre>\n</td></tr></table>");
 		return i;
@@ -231,7 +232,7 @@ var Boildown = (function() {
 		var content = doc.html.substring(l0);
 		doc.html=doc.html.substring(0, l0);
 		doc.add(example);
-		doc.add("</code></pre></td><td>\n"); 
+		doc.add("</code></pre></td>\n<td>"); 
 		doc.add(content);
 		doc.add("</td></tr></table>");
 		return i;
