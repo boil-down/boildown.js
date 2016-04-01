@@ -3,22 +3,23 @@ var Boildown = (function() {
 	'use strict';
 
 	const BLOCKS    = [
-		[ Separator,        /^(?:(?:\s+[-+*]+){3,}|\s+[-+*]{3,})\s*((?:\[[^\]]+\])*)?$/ ],
-		[ b3("ins"),        /^\+{3,}/ ],
-		[ b3("del"),        /^-{3,}/ ],
-		[ b3("blockquote"), /^>{3,}/ ],
-		[ b2("blockquote"), /^> / ],
-		[ Minipage,         /^(\*{3,})(?:\{(\w+)\})?/ ],
-		[ Listing,          /^`{3,}\*?(?:\{(\w+(?: \w+)*)\})?/ ],
-		[ Listing,          /^~{3,}\*?(?:\{(\w+(?: \w+)*)\})?/ ],
-		[ Output,           /^! / ],
-		[ Sample,           /^\? / ],
-		[ List,             /^\* / ],
-		[ List,             /^(#|[0-9]{1,2}|[a-zA-Z])\. / ],
-		[ Heading,          /^={3,}(.+?)(?:={3,})(?:\{(\w+)\})?((?:\[[^\]]+\])*)?$/ ],
-		[ Table,            /^([:\|]):?(.+?):?([:\|])(\*)?(?:\{(\d+).?(\d+)?\})?((?:\[[^\]]+\])*)?$/ ],
-		[ Figure,           /^(?:\( ((?:(?:https?:\/\/)?(?:[-\w]{0,15}[.:/#+]?){1,20}))\s+([-+ ,.:\w]+)? \)|\(\((.+?)\)\))((?:\[[^\]]+\])*)?$/ ],
-		[ Paragraph,        /^(.|$)/ ]
+		[ Meta,        /^% / ],
+		[ Separator,   /^(?:(?:\s+[-+*]+){3,}|\s+[-+*]{3,})\s*((?:\[[^\]]+\])*)?$/ ],
+		[ Edit,        /^\+{3,}(?:\{([-\d]+)\})?/ ],
+		[ Edit,        /^-{3,}(?:\{([-\d]+)\})?/ ],
+		[ Blockquote,  /^>{3,}(?:\{([ \w\.#]+)\})?/ ],
+		[ Blockquote2, /^> / ],
+		[ Minipage,    /^(\*{3,})(?:\{(\w+)\})?/ ],
+		[ Listing,     /^`{3,}\*?(?:\{(\w+(?: \w+)*)\})?/ ],
+		[ Listing,     /^~{3,}\*?(?:\{(\w+(?: \w+)*)\})?/ ],
+		[ Output,      /^! / ],
+		[ Sample,      /^\? / ],
+		[ List,        /^\* / ],
+		[ List,        /^(#|[0-9]{1,2}|[a-zA-Z])\. / ],
+		[ Heading,     /^={3,}(.+?)(?:={3,})(?:\{(\w+)\})?((?:\[[^\]]+\])*)?$/ ],
+		[ Table,       /^([:\|]):?(.+?):?([:\|])(\*)?(?:\{(\d+).?(\d+)?\})?((?:\[[^\]]+\])*)?$/ ],
+		[ Figure,      /^(?:\( ((?:(?:https?:\/\/)?(?:[-\w]{0,15}[.:/#+]?){1,20}))\s+([-+ ,.:\w]+)? \)|\(\((.+?)\)\))((?:\[[^\]]+\])*)?$/ ],
+		[ Paragraph,   /^(.|$)/ ]
 	];
 
 	const INLINE = [
@@ -56,10 +57,10 @@ var Boildown = (function() {
 
 	const STYLES = [
 		// dynamic values
-		[ /^(?: ?[a-zA-Z][-_a-zA-Z0-9]*)+$/ ], // length 1 => classes, else => style
-		[ /^[0-9]{1,3}%$/, "width"],
-		[ /^#[0-9A-Fa-f]{6}$/, "background-color"],
-		[ /^[0-9]{1,2}pt$/, "font-size"],
+		[ /^\d{1,3}%$/,  "width"],
+		[ /^\d{1,2}pt$/, "font-size"],
+		[ /^#\w{6}$/,    "background-color"],
+		[ /^(?:[- \w]*)+$/ ], // length 1 => classes, else => style
 		// fixed values
 		[ /^`$/,  "font-family", "monospace", "ff-mono"],
 		[ /^'$/,  "font-family", "sans-serif", "ff-sans"],
@@ -85,6 +86,7 @@ var Boildown = (function() {
 		this.lines  = markup.split(/\r?\n/g);
 		this.levels = [0,0,0,0,0,0,0];
 		this.html   = "";
+		this.meta   = [];
 		// common functions
 		this.process  = process;
 		this.styles   = styles;
@@ -145,6 +147,15 @@ var Boildown = (function() {
 
 	// BLOCK functions return the line index after the block
 
+	function Meta(doc, start, end, level) {
+		var line = doc.line(start);
+		var i = line.indexOf(':');
+		if (i > 0) {		
+			doc.meta.push([ line.substring(2, i), line.substring(i+1)]);
+		}
+		return start+1;
+	}
+
 	function Separator(doc, start, end, level) {
 		doc.add("<hr "+doc.styles(doc.line(start))+" />\n");
 		return start+1;
@@ -182,26 +193,38 @@ var Boildown = (function() {
 		return text.replace(/[^a-zA-Z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
 	}
 
-	function b2(tag) {
-		function block(doc, start, end, level, pattern) {
-			var i = doc.unindent(2, start, end, pattern);
-			doc.add("<"+tag+">\n"); 
-			doc.process(start, i, level+1);
-			doc.add("</"+tag+">\n");
-			return i;
-		}
-		return block;
+	function prefixedBlock(doc, start, end, level, pattern, tag, attr) {
+		var i = doc.unindent(2, start, end, pattern);
+		doc.add("<"+tag+" "+attr+">\n"); 
+		doc.process(start, i, level+1);
+		doc.add("</"+tag+">\n");
+		return i;
 	}
 
-	function b3(tag) {
-		function block(doc, start, end, level, pattern) {
-			var i = doc.scan(start+1, end, pattern);
-			doc.add("<"+tag+" "+doc.styles(doc.line(start))+">\n"); 
-			doc.process(start+1, i, level+1);
-			doc.add("</"+tag+">\n");
-			return i+1;
-		}
-		return block;
+	function fencedBlock(doc, start, end, level, pattern, tag, attr) {
+		var i = doc.scan(start+1, end, pattern);
+		doc.add("<"+tag+" "+attr+" "+doc.styles(doc.line(start), "block")+">\n"); 
+		doc.process(start+1, i, level+1);
+		doc.add("</"+tag+">\n");
+		return i+1;
+	}
+
+	function Blockquote(doc, start, end, level, pattern) {
+		var attr = pattern.exec(doc.line(start))[1];
+		if (attr) { attr = "cite='"+attr+"'"; };
+		return fencedBlock(doc, start, end, level, pattern, "blockquote", attr);
+	}
+
+	function Blockquote2(doc, start, end, level, pattern) {
+		return prefixedBlock(doc, start, end, level, pattern, "blockquote", "");
+	}
+
+	function Edit(doc, start, end, level, pattern) {
+		var line = doc.line(start);
+		var tag = line.startsWith("---") ? "del" : "ins";
+		var attr = pattern.exec(line)[1];
+		if (attr) { attr = "datetime='"+attr+"'"; }
+		return fencedBlock(doc, start, end, level, pattern, tag, attr);
 	}
 
 	function Output(doc, start, end, level, pattern) {

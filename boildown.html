@@ -9,6 +9,9 @@
 	<div class='column'>
 		<h1>boildown</h1>
 		<textarea id="input" rows="20">
+% v:beta
+% author: Jan Bernitt
+
 === User Manual ===
 === for the boildown markup language ===
 
@@ -142,6 +145,12 @@ Link creation can be escaped as usual:
 ? added content
 ? +++
 
+Using option to set date of edit:
+
+? +++{2016-04-01}
+? Added 1.of April
+? +++
+
 === Headings ===
 Use three or more `=` on each side of a heading:
 ? === Default Level ===
@@ -178,6 +187,11 @@ Advanced block quotes `>>>` can be used with options, e.g. to preserve line wrap
 ? multiple lines
 ? wrapping like 
 ? source
+? >>>
+
+Using option to specify citation:
+? >>>{Me}
+? Simple new stupidity
 ? >>>
 
 Using minipages to position a cite footer.
