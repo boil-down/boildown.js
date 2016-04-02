@@ -5,11 +5,13 @@ var bdReader = (function() {
 		open: load
 	}
 
-	function load(file, onSuccess) {
+	function load(file, onSuccess, onError) {
 	  var request = new XMLHttpRequest();
 	  request.onreadystatechange = function() {
 		if (request.readyState == 4 && request.status == 200) {
-		  onSuccess(request.responseText);
+			onSuccess(request.responseText);
+		} else if (onError) {
+			onError(request.status);
 		}
 	  };
 	  request.open("GET", file, true);
